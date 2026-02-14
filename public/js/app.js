@@ -101,17 +101,26 @@ class App {
     async handleAuthSuccess(type, tokens) {
         localStorage.setItem(`tidal_v2_session_${type}`, JSON.stringify(tokens));
         try {
-            const session = await this.api.getSessions(tokens.access_token);
-            this.accounts[type] = { tokens, userId: session.userId };
+            let userId = tokens.userId || tokens.user_id;
+            if (!userId) {
+                try {
+                    const session = await this.api.getSessions(tokens.access_token);
+                    userId = session.userId || session.user_id;
+                } catch (e) {
+                    userId = this.api.parseUserIdFromToken(tokens.access_token);
+                    if (!userId) throw e;
+                }
+            }
+            this.accounts[type] = { tokens, userId };
             document.getElementById(`btn-${type}-login`).classList.add('hidden');
             document.getElementById(`${type}-device-flow`).classList.add('hidden');
             document.getElementById(`${type}-profile`).classList.remove('hidden');
-            document.getElementById(`${type}-username`).textContent = `User: ${session.userId}`;
+            document.getElementById(`${type}-username`).textContent = `User: ${userId}`;
             await this.refreshStats(type);
             this.checkReadiness();
         } catch (e) {
             console.error(e);
-            if (e.message.includes('401')) this.logout(type);
+            if (e.message.includes('401') || e.message.includes('403')) this.logout(type);
         }
     }
 

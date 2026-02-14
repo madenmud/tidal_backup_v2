@@ -5,30 +5,21 @@ class TidalAPI {
     constructor(clientId) {
         this.clientId = clientId;
         this.authBase = 'https://auth.tidal.com/v1';
-        this.apiBase = 'https://api.tidal.com/v1';
+        this.apiBase = 'https://api.tidalhifi.com/v1';
         this.proxyEndpoint = '/api/proxy?url=';
+        this.apiHeaders = { 'Accept': 'application/json' };
     }
 
     async fetchProxy(url, options = {}) {
         const targetUrl = `${this.proxyEndpoint}${encodeURIComponent(url)}`;
-        
-        // Use URLSearchParams directly for body to let the browser set the content-type correctly
         let body = options.body;
         if (options.method === 'POST' && !(body instanceof URLSearchParams)) {
-            if (typeof body === 'object') {
-                body = JSON.stringify(body);
-            }
+            if (typeof body === 'object') body = JSON.stringify(body);
         }
+        const headers = { ...this.apiHeaders, ...options.headers };
 
         try {
-            const response = await fetch(targetUrl, {
-                method: options.method || 'GET',
-                headers: {
-                    ...options.headers
-                },
-                body: body
-            });
-
+            const response = await fetch(targetUrl, { method: options.method || 'GET', headers, body });
             const data = await response.json();
             if (!response.ok) throw new Error(data.error_description || data.error || `HTTP ${response.status}`);
             return data;
@@ -36,6 +27,15 @@ class TidalAPI {
             console.error(`[TidalAPI] Error:`, error);
             throw error;
         }
+    }
+
+    parseUserIdFromToken(accessToken) {
+        try {
+            const parts = accessToken.split('.');
+            if (parts.length !== 3) return null;
+            const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+            return payload.sub || payload.userId || payload.user_id || payload.subscription?.userId || null;
+        } catch (e) { return null; }
     }
 
     async getDeviceCode() {
