@@ -15,10 +15,10 @@ class TidalAPI {
 
     async fetchWithProxy(url, options = {}, retryCount = 0) {
         const proxies = [
-            'https://api.allorigins.win/raw?url=',
             'https://corsproxy.io/?',
+            'https://api.allorigins.win/raw?url=',
             'https://cors-anywhere.azm.workers.dev/',
-            ''
+            'https://thingproxy.freeboard.io/fetch/'
         ];
         
         const currentProxy = retryCount === 0 && this.proxyUrl ? this.proxyUrl : proxies[retryCount % proxies.length];
@@ -41,7 +41,7 @@ class TidalAPI {
                 }
             };
 
-            if (fetchOptions.method === 'POST') {
+            if (options.method === 'POST') {
                 fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
             }
 
@@ -51,14 +51,10 @@ class TidalAPI {
             if (!response.ok) {
                 console.warn(`[TidalAPI] Attempt ${retryCount + 1} failed (${response.status})`);
                 
-                if (response.status === 401) {
-                    throw new Error(`Invalid Client ID (401). Please choose a different Preset in Settings.`);
-                }
-
-                if (retryCount < proxies.length - 1) {
+                if (retryCount < proxies.length - 1 && response.status !== 401) {
                     return this.fetchWithProxy(url, options, retryCount + 1);
                 }
-                throw new Error(`Proxy error: ${response.status}`);
+                throw new Error(`Proxy error: ${response.status} - ${text}`);
             }
 
             try {
