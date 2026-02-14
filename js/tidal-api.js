@@ -59,9 +59,12 @@ class TidalAPI {
     async getDeviceCode() {
         const params = new URLSearchParams();
         params.append('client_id', this.clientId);
-        params.append('scope', 'r_usr w_usr');
+        params.append('scope', 'r_usr w_usr w_sub'); // Full scope
 
-        return this.fetchWithProxy(`${this.authBase}/oauth2/device_authorization`, {
+        // Put client_id in BOTH URL and Body for maximum compatibility
+        const url = `${this.authBase}/oauth2/device_authorization?client_id=${this.clientId}`;
+
+        return this.fetchWithProxy(url, {
             method: 'POST',
             body: params.toString()
         });
@@ -73,10 +76,12 @@ class TidalAPI {
         params.append('device_code', deviceCode);
         params.append('grant_type', 'urn:ietf:params:oauth:grant-type:device_code');
 
+        const url = `${this.authBase}/oauth2/token?client_id=${this.clientId}`;
+
         return new Promise((resolve, reject) => {
             const poll = setInterval(async () => {
                 try {
-                    const data = await this.fetchWithProxy(`${this.authBase}/oauth2/token`, {
+                    const data = await this.fetchWithProxy(url, {
                         method: 'POST',
                         body: params.toString()
                     });

@@ -10,7 +10,7 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v13'; // Lucky 13
+        const currentVersion = 'v14'; // Version 14
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -20,7 +20,7 @@ class App {
         }
 
         this.api = new TidalAPI(
-            localStorage.getItem('tidal_client_id') || 'zU4XSTBY6v3sq4Ax',
+            localStorage.getItem('tidal_client_id') || 'p0qE9u9V8V8v8V8v',
             localStorage.getItem('tidal_proxy') || 'https://corsproxy.io/?'
         );
 
