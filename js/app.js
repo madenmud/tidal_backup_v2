@@ -10,7 +10,7 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v10'; // New version
+        const currentVersion = 'v11'; // New version for popup logic
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -102,6 +102,10 @@ class App {
             const deviceAuth = await this.api.getDeviceCode();
             userCodeEl.textContent = deviceAuth.userCode;
 
+            // Automatically open Tidal Login in a popup
+            const popupUrl = `https://link.tidal.com/${deviceAuth.userCode}`;
+            window.open(popupUrl, 'tidal-login', 'width=600,height=800');
+
             let seconds = deviceAuth.expiresIn;
             const timer = setInterval(() => {
                 seconds--;
@@ -115,7 +119,7 @@ class App {
             await this.handleSuccessfulLogin(type, tokens);
         } catch (e) {
             console.error('Login Error Detail:', e);
-            alert(`Login Error: ${e.message}\nTry changing the Proxy URL in Settings.`);
+            alert(`Login Error: ${e.message}`);
             loginBtn.classList.remove('hidden');
             flowContainer.classList.add('hidden');
         }
