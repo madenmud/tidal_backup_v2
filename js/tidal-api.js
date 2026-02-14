@@ -15,10 +15,9 @@ class TidalAPI {
 
     async fetchWithProxy(url, options = {}, retryCount = 0) {
         const proxies = [
-            'https://corsproxy.io/?',
             'https://api.allorigins.win/raw?url=',
             'https://cors-anywhere.azm.workers.dev/',
-            'https://thingproxy.freeboard.io/fetch/'
+            'https://corsproxy.io/?'
         ];
         
         const currentProxy = retryCount === 0 && this.proxyUrl ? this.proxyUrl : proxies[retryCount % proxies.length];
@@ -76,7 +75,7 @@ class TidalAPI {
     async getDeviceCode() {
         const params = new URLSearchParams();
         params.append('client_id', this.clientId);
-        params.append('scope', 'r_usr w_usr');
+        params.append('scope', 'offline');
 
         const authUrl = `${this.authBase}/oauth2/device_authorization?${params.toString()}`;
 
