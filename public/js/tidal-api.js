@@ -32,7 +32,9 @@ class TidalAPI {
             }
             return data;
         } catch (error) {
-            console.error(`[TidalAPI] Error:`, error);
+            const msg = (error.message || '').toLowerCase();
+            const isPendingAuth = msg.includes('authorization_pending') || msg.includes('not authorized yet') || msg.includes('slow_down');
+            if (!isPendingAuth) console.error(`[TidalAPI] Error:`, error);
             throw error;
         }
     }
@@ -140,7 +142,8 @@ class TidalAPI {
                 } while (cursor);
                 return items;
             } catch (e) {
-                if (e.message && e.message.includes('404') && urlsToTry.indexOf(urlFn) < urlsToTry.length - 1) continue;
+                const is404 = e.message && (e.message.includes('404') || e.message.includes('Non-JSON'));
+                if (is404 && urlsToTry.indexOf(urlFn) < urlsToTry.length - 1) continue;
                 throw e;
             }
         }

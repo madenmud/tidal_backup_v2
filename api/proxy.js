@@ -42,7 +42,7 @@ export default async function handler(req, res) {
         } else {
             const text = await response.text();
             try { data = JSON.parse(text); } catch (e) {
-                data = { error: 'Non-JSON response', status: response.status, preview: text.slice(0, 200) };
+                data = { error: `HTTP ${response.status}`, status: response.status, preview: text.slice(0, 200) };
             }
         }
 
