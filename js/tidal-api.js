@@ -15,40 +15,33 @@ class TidalAPI {
 
     async fetchWithProxy(url, options = {}, retryCount = 0) {
         const proxies = [
-            'https://thingproxy.freeboard.io/fetch/',
-            'https://cors-proxy.htmldriven.com/?url=',
+            'https://corsproxy.io/?',
             'https://api.allorigins.win/raw?url=',
-            'https://corsproxy.io/?'
+            'https://cors-anywhere.azm.workers.dev/',
+            'https://api.codetabs.com/v1/proxy?quest='
         ];
         
         const currentProxy = retryCount === 0 && this.proxyUrl ? this.proxyUrl : proxies[retryCount % proxies.length];
         
-        let targetUrl = url;
-        if (currentProxy) {
-            targetUrl = (currentProxy.includes('allorigins') || currentProxy.includes('htmldriven')) 
-                ? `${currentProxy}${encodeURIComponent(url)}` 
-                : `${currentProxy}${url}`;
-        }
+        // Use full encoding for allorigins/codetabs, raw for others
+        let targetUrl = (currentProxy.includes('allorigins') || currentProxy.includes('codetabs'))
+            ? `${currentProxy}${encodeURIComponent(url)}`
+            : `${currentProxy}${url}`;
 
         console.log(`[TidalAPI] Attempt ${retryCount + 1}: ${targetUrl}`);
         
         try {
+            // CRITICAL: Construct a 'Simple Request' to bypass CORS Preflight (OPTIONS)
             const fetchOptions = {
                 method: options.method || 'GET',
-                body: options.body,
-                headers: {
-                    'Accept': 'application/json',
-                    ...options.headers
-                }
+                body: options.body
             };
 
-            // Set Content-Type explicitly based on body content
+            // Only add Content-Type for POST to keep it a 'Simple Request'
             if (fetchOptions.method === 'POST') {
-                if (typeof fetchOptions.body === 'string' && fetchOptions.body.startsWith('{')) {
-                    fetchOptions.headers['Content-Type'] = 'application/json';
-                } else {
-                    fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
-                }
+                fetchOptions.headers = {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                };
             }
 
             const response = await fetch(targetUrl, fetchOptions);
@@ -56,7 +49,9 @@ class TidalAPI {
             
             if (!response.ok) {
                 console.warn(`[TidalAPI] Attempt ${retryCount + 1} failed (${response.status})`);
-                if (retryCount < proxies.length - 1 && response.status !== 401) {
+                
+                // 401 is a Client ID error, 415 is a header error - both worth retrying with different proxy
+                if (retryCount < proxies.length - 1) {
                     return this.fetchWithProxy(url, options, retryCount + 1);
                 }
                 throw new Error(`Proxy error: ${response.status} - ${text}`);
@@ -69,7 +64,7 @@ class TidalAPI {
             }
         } catch (e) {
             console.error(`[TidalAPI] Attempt ${retryCount + 1} error:`, e);
-            if (retryCount < proxies.length - 1 && !e.message.includes('401')) {
+            if (retryCount < proxies.length - 1) {
                 return this.fetchWithProxy(url, options, retryCount + 1);
             }
             throw e;
@@ -79,29 +74,31 @@ class TidalAPI {
     // --- Authentication (Device Flow) ---
 
     async getDeviceCode() {
-        const body = {
-            client_id: this.clientId,
-            scope: 'r_usr w_usr w_sub'
-        };
+        const params = new URLSearchParams();
+        params.append('client_id', this.clientId);
+        params.append('scope', 'r_usr w_usr w_sub');
 
-        // Try sending as JSON string - proxies often handle application/json better
-        return this.fetchWithProxy(`${this.authBase}/oauth2/device_authorization`, {
+        // Include client_id in URL as a fallback for header-stripping proxies
+        const authUrl = `${this.authBase}/oauth2/device_authorization?client_id=${this.clientId}`;
+
+        return this.fetchWithProxy(authUrl, {
             method: 'POST',
-            body: JSON.stringify(body)
+            body: params.toString()
         });
     }
 
     async pollForToken(deviceCode, interval) {
-        const body = {
-            client_id: this.clientId,
-            device_code: deviceCode,
-            grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
-        };
+        const params = new URLSearchParams();
+        params.append('client_id', this.clientId);
+        params.append('device_code', deviceCode);
+        params.append('grant_type', 'urn:ietf:params:oauth:grant-type:device_code');
+
+        const tokenUrl = `${this.authBase}/oauth2/token?client_id=${this.clientId}`;
+        const pollInterval = (interval || 5) * 1000;
 
         return new Promise((resolve, reject) => {
             const startTime = Date.now();
             const timeout = 300000;
-            const pollInterval = (interval || 5) * 1000;
 
             const poll = async () => {
                 if (Date.now() - startTime > timeout) {
@@ -110,9 +107,9 @@ class TidalAPI {
                 }
 
                 try {
-                    const data = await this.fetchWithProxy(`${this.authBase}/oauth2/token`, {
+                    const data = await this.fetchWithProxy(tokenUrl, {
                         method: 'POST',
-                        body: JSON.stringify(body)
+                        body: params.toString()
                     });
                     
                     console.log('[TidalAPI] Poll Response:', data);
@@ -146,15 +143,11 @@ class TidalAPI {
         params.append('refresh_token', refreshToken);
         params.append('grant_type', 'refresh_token');
 
-        const refreshUrl = `${this.authBase}/oauth2/token?${params.toString()}`;
-
-        return this.fetchWithProxy(refreshUrl, {
+        return this.fetchWithProxy(`${this.authBase}/oauth2/token`, {
             method: 'POST',
             body: params.toString()
         });
     }
-
-    // --- Data Fetching ---
 
     async getProfile(accessToken) {
         return this.fetchWithProxy(`${this.apiBase}/sessions`, {
@@ -180,8 +173,6 @@ class TidalAPI {
         return items;
     }
 
-    // --- Data Restoration ---
-
     async addFavorite(userId, accessToken, type, id) {
         const endpointMap = {
             'tracks': 'tracks',
@@ -192,7 +183,7 @@ class TidalAPI {
         const params = new URLSearchParams();
         params.append(type === 'tracks' ? 'trackId' : (type === 'artists' ? 'artistId' : 'albumId'), id);
 
-        const favUrl = `${this.apiBase}/users/${userId}/favorites/${endpointMap[type]}?${params.toString()}`;
+        const favUrl = `${this.apiBase}/users/${userId}/favorites/${endpointMap[type]}`;
 
         return this.fetchWithProxy(favUrl, {
             method: 'POST',
