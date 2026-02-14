@@ -10,7 +10,7 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v11'; // New version for popup logic
+        const currentVersion = 'v12'; // Bump for FireTV ID
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -20,8 +20,8 @@ class App {
         }
 
         this.api = new TidalAPI(
-            localStorage.getItem('tidal_client_id') || 'zU4XSTBY6v3sq4Ax',
-            localStorage.getItem('tidal_proxy') || 'https://corsproxy.io/?'
+            localStorage.getItem('tidal_client_id') || '8S9vSbe9v8V8v8V8',
+            localStorage.getItem('tidal_proxy') || 'https://thingproxy.freeboard.io/fetch/'
         );
 
         this.initUI();

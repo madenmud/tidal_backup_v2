@@ -62,10 +62,7 @@ class TidalAPI {
         params.append('client_id', this.clientId);
         params.append('scope', 'r_usr w_usr');
 
-        // Append client_id to URL as well just in case the proxy strips the body
-        const url = `${this.authBase}/oauth2/device_authorization?client_id=${this.clientId}`;
-
-        return this.fetchWithProxy(url, {
+        return this.fetchWithProxy(`${this.authBase}/oauth2/device_authorization`, {
             method: 'POST',
             body: params.toString()
         });
@@ -77,12 +74,10 @@ class TidalAPI {
         params.append('device_code', deviceCode);
         params.append('grant_type', 'urn:ietf:params:oauth:grant-type:device_code');
 
-        const url = `${this.authBase}/oauth2/token?client_id=${this.clientId}`;
-
         return new Promise((resolve, reject) => {
             const poll = setInterval(async () => {
                 try {
-                    const data = await this.fetchWithProxy(url, {
+                    const data = await this.fetchWithProxy(`${this.authBase}/oauth2/token`, {
                         method: 'POST',
                         body: params.toString()
                     });
