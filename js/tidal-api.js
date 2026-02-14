@@ -14,11 +14,29 @@ class TidalAPI {
     }
 
     async fetchWithProxy(url, options = {}) {
-        const targetUrl = this.proxyUrl ? `${this.proxyUrl}${encodeURIComponent(url)}` : url;
+        // Use a more robust proxy format
+        // If it's allorigins, it needs ?url=
+        // If it's corsproxy.io, it needs ?
+        let targetUrl = url;
+        if (this.proxyUrl) {
+            if (this.proxyUrl.includes('allorigins')) {
+                targetUrl = `${this.proxyUrl}${encodeURIComponent(url)}`;
+            } else {
+                // Default to simple append for corsproxy.io style
+                targetUrl = `${this.proxyUrl}${url}`;
+            }
+        }
+
+        console.log('Fetching:', targetUrl);
         const response = await fetch(targetUrl, options);
+        
         if (!response.ok) {
-            const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-            throw new Error(error.userMessage || error.message || `HTTP ${response.status}`);
+            let errorMsg = `HTTP ${response.status}`;
+            try {
+                const error = await response.json();
+                errorMsg = error.userMessage || error.message || errorMsg;
+            } catch (e) {}
+            throw new Error(errorMsg);
         }
         return response.json();
     }
@@ -33,10 +51,7 @@ class TidalAPI {
 
         return this.fetchWithProxy(`${this.authBase}/oauth2/device_authorization`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: params.toString()
+            body: params // Fetch handles URLSearchParams automatically
         });
     }
 
@@ -52,10 +67,7 @@ class TidalAPI {
                 try {
                     const data = await this.fetchWithProxy(`${this.authBase}/oauth2/token`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
-                        body: params.toString()
+                        body: params
                     });
                     
                     if (data.access_token) {
@@ -100,7 +112,6 @@ class TidalAPI {
     }
 
     async getFavorites(userId, accessToken, type) {
-        // type: tracks, artists, albums
         let items = [];
         let offset = 0;
         const limit = 100;
@@ -110,8 +121,8 @@ class TidalAPI {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
 
-            items = items.concat(data.items);
-            if (data.items.length < limit) break;
+            items = items.concat(data.items || []);
+            if (!data.items || data.items.length < limit) break;
             offset += limit;
         }
 
@@ -121,23 +132,19 @@ class TidalAPI {
     // --- Data Restoration ---
 
     async addFavorite(userId, accessToken, type, id) {
-        // type: tracks, artists, albums (endpoint needs singular/plural check)
         const endpointMap = {
             'tracks': 'tracks',
             'artists': 'artists',
             'albums': 'albums'
         };
 
-        const body = new URLSearchParams();
-        body.append(type === 'tracks' ? 'trackId' : (type === 'artists' ? 'artistId' : 'albumId'), id);
+        const params = new URLSearchParams();
+        params.append(type === 'tracks' ? 'trackId' : (type === 'artists' ? 'artistId' : 'albumId'), id);
 
         return this.fetchWithProxy(`${this.apiBase}/users/${userId}/favorites/${endpointMap[type]}`, {
             method: 'POST',
-            headers: { 
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: body
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+            body: params
         });
     }
 }

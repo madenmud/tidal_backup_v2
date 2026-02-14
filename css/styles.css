@@ -1,7 +1,7 @@
 /* Hi-Fi Jitter Meter - Unified Styles with Theme Support */
 
-    /* --- Modern Theme Variables (Default) --- */
-:root, body.theme-modern {
+/* --- Default Variables (Modern Theme) --- */
+:root {
     --bg: #0b0b0e;
     --surface: #16161a;
     --surface-hover: #1e1e24;
@@ -22,7 +22,7 @@
     --drawer-w: 400px;
 }
 
-/* --- Brutalist Theme Variables --- */
+/* --- Brutalist Theme Overrides (Applied to body) --- */
 body.theme-brutalist {
     --bg: #ffffff;
     --surface: #ffffff;
@@ -43,7 +43,19 @@ body.theme-brutalist {
     --drawer-w: 450px;
 }
 
-/* Light Mode for Modern (Only if system prefers light and we are in modern) */
+/* Dark Mode for Brutalist (Optional, based on system) */
+@media (prefers-color-scheme: dark) {
+    body.theme-brutalist {
+        --bg: #121212;
+        --surface: #1e1e1e;
+        --border: #ffffff;
+        --text: #ffffff;
+        --text-muted: #aaaaaa;
+        --shadow: 8px 8px 0px #ffffff;
+    }
+}
+
+/* Light Mode for Modern (Optional, based on system) */
 @media (prefers-color-scheme: light) {
     body.theme-modern {
         --bg: #f8fafc;
@@ -54,18 +66,6 @@ body.theme-brutalist {
         --text-muted: #64748b;
         --shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
         --glass: rgba(0, 0, 0, 0.02);
-    }
-}
-
-/* Dark Mode for Brutalist (Only if system prefers dark and we are in brutalist) */
-@media (prefers-color-scheme: dark) {
-    body.theme-brutalist {
-        --bg: #121212;
-        --surface: #1e1e1e;
-        --border: #ffffff;
-        --text: #ffffff;
-        --text-muted: #aaaaaa;
-        --shadow: 8px 8px 0px #ffffff;
     }
 }
 
@@ -81,7 +81,6 @@ body {
     display: flex;
     flex-direction: column;
     line-height: 1.5;
-    transition: background 0.2s ease, color 0.2s ease;
 }
 
 .hidden { display: none !important; }
@@ -95,7 +94,6 @@ body {
     padding: 1.25rem 1.5rem;
     background: var(--glass);
     backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
     border-bottom: var(--bw) solid var(--border);
     position: sticky;
     top: 0;
@@ -131,11 +129,11 @@ body.theme-brutalist .title {
 
 .dual-panel {
     display: grid;
-    grid-template-columns: 1fr 250px 1fr;
+    grid-template-columns: 1fr 280px 1fr;
     gap: 2rem;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
     .dual-panel {
         grid-template-columns: 1fr;
     }
@@ -151,13 +149,13 @@ body.theme-brutalist .title {
 }
 
 .section-title {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 900;
     text-transform: uppercase;
     background: var(--border);
     color: var(--surface);
     display: inline-block;
-    padding: 0.25rem 0.75rem;
+    padding: 0.35rem 0.85rem;
     margin-bottom: 1.5rem;
 }
 
@@ -171,35 +169,33 @@ body.theme-brutalist .title {
     background: var(--warning);
     border: var(--bw) solid var(--border);
     border-radius: var(--radius);
-    padding: 1.5rem;
+    padding: 2rem;
     box-shadow: var(--shadow);
     width: 100%;
 }
 
-body.theme-brutalist .control-box {
-    background: var(--warning);
-}
-
 .box-title {
-    margin: 0 0 1rem;
-    font-size: 1.1rem;
+    margin: 0 0 1.25rem;
+    font-size: 1rem;
     font-weight: 900;
     text-transform: uppercase;
+    color: #000;
 }
 
 .checkbox-group {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
+    gap: 1rem;
+    margin-bottom: 2rem;
 }
 
 .checkbox-label {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-weight: 700;
+    gap: 0.75rem;
+    font-weight: 800;
     cursor: pointer;
+    color: #000;
 }
 
 /* --- Auth/Profile --- */
@@ -211,15 +207,16 @@ body.theme-brutalist .control-box {
 
 .user-code {
     font-family: var(--font-mono);
-    font-size: 2rem;
+    font-size: 1.75rem;
     font-weight: 900;
     border: var(--bw) solid var(--border);
     border-radius: calc(var(--radius) / 2);
-    padding: 1rem;
+    padding: 1.25rem;
     text-align: center;
     background: var(--accent-secondary);
     color: #000;
     margin: 1rem 0;
+    letter-spacing: 2px;
 }
 
 .stats-list {
@@ -229,11 +226,13 @@ body.theme-brutalist .control-box {
 }
 
 .stats-list li {
-    font-weight: 700;
+    font-weight: 800;
     font-size: 1.1rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
     border-bottom: 2px solid var(--border);
-    padding-bottom: 0.25rem;
+    padding-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
 }
 
 /* --- Buttons --- */
@@ -241,14 +240,14 @@ body.theme-brutalist .control-box {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.75rem 1.25rem;
-    font-size: 0.875rem;
-    font-weight: 700;
+    padding: 0.85rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 800;
     font-family: inherit;
     border: var(--bw) solid var(--border);
     border-radius: var(--radius);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     background: var(--surface);
     color: var(--text);
     text-transform: uppercase;
@@ -257,7 +256,7 @@ body.theme-brutalist .control-box {
 
 .btn:hover:not(:disabled) {
     background: var(--surface-hover);
-    transform: translateY(-2px);
+    transform: translateY(-3px);
 }
 
 body.theme-brutalist .btn {
@@ -266,8 +265,8 @@ body.theme-brutalist .btn {
 
 body.theme-brutalist .btn:hover:not(:disabled) {
     background: var(--accent);
-    transform: translate(-2px, -2px);
-    box-shadow: 12px 12px 0px var(--border);
+    transform: translate(-3px, -3px);
+    box-shadow: calc(var(--shadow) + 4px) calc(var(--shadow) + 4px) 0px var(--border);
 }
 
 .btn:active:not(:disabled) { transform: translateY(0); }
@@ -287,53 +286,41 @@ body.theme-brutalist .btn-primary {
 
 .btn-large {
     width: 100%;
-    padding: 1.25rem;
-    font-size: 1.2rem;
+    padding: 1.5rem;
+    font-size: 1.25rem;
 }
 
 .btn-icon {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     padding: 0;
-    font-size: 1.2rem;
+    font-size: 1.5rem;
 }
 
 /* --- Modal & Drawer --- */
 .modal {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     display: flex;
     justify-content: flex-end;
     align-items: stretch;
     z-index: 1000;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s ease;
 }
 
-.modal:not(.hidden) {
-    opacity: 1;
-    visibility: visible;
-}
+.modal.hidden { display: none !important; }
 
 .modal-content {
     background: var(--surface);
     border-left: var(--bw) solid var(--border);
     width: 100%;
     max-width: var(--drawer-w);
-    padding: 2.5rem;
+    padding: 3rem 2.5rem;
     display: flex;
     flex-direction: column;
-    transform: translateX(100%);
-    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     overflow-y: auto;
-}
-
-.modal:not(.hidden) .modal-content {
-    transform: translateX(0);
 }
 
 @media (max-width: 600px) {
@@ -347,22 +334,17 @@ body.theme-brutalist .btn-primary {
         border-top: var(--bw) solid var(--border);
         border-radius: var(--radius) var(--radius) 0 0;
         height: auto;
-        max-height: 90vh;
-        transform: translateY(100%);
+        max-height: 92vh;
         padding: 2.5rem 1.5rem;
-    }
-
-    .modal:not(.hidden) .modal-content {
-        transform: translateY(0);
     }
 }
 
 /* --- Settings Content --- */
-.settings-group { margin-bottom: 2rem; }
+.settings-group { margin-bottom: 2.5rem; }
 .settings-group label {
     display: block;
-    font-size: 0.75rem;
-    font-weight: 800;
+    font-size: 0.8rem;
+    font-weight: 900;
     text-transform: uppercase;
     color: var(--text-muted);
     margin-bottom: 1rem;
@@ -370,12 +352,13 @@ body.theme-brutalist .btn-primary {
 
 .input {
     width: 100%;
-    padding: 0.75rem;
+    padding: 1rem;
     border: var(--bw) solid var(--border);
     border-radius: calc(var(--radius) / 2);
     font-family: var(--font-mono);
     background: var(--bg);
     color: var(--text);
+    font-size: 0.9rem;
 }
 
 .theme-options { display: grid; gap: 1rem; }
@@ -395,26 +378,26 @@ body.theme-brutalist .theme-btn.active {
     color: #000;
 }
 
-.help-text { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; }
+.help-text { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.75rem; line-height: 1.4; }
 
-.modal-close-btn { margin-top: 2rem; }
+.modal-close-btn { margin-top: auto; }
 
 /* --- Progress Section --- */
 .progress-section {
-    margin-top: 3rem;
+    margin-top: 4rem;
     border: var(--bw) solid var(--border);
     border-radius: var(--radius);
-    padding: 2rem;
+    padding: 2.5rem;
     background: var(--surface);
     box-shadow: var(--shadow);
 }
 
 .progress-bar-container {
-    height: 30px;
+    height: 36px;
     border: var(--bw) solid var(--border);
     border-radius: calc(var(--radius) / 2);
     background: var(--bg);
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
     overflow: hidden;
 }
 
@@ -422,31 +405,33 @@ body.theme-brutalist .theme-btn.active {
     height: 100%;
     background: var(--accent-secondary);
     width: 0%;
-    transition: width 0.3s ease;
+    transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .log-container {
-    height: 200px;
+    height: 250px;
     overflow-y: auto;
     background: #000;
     color: #0f0;
     font-family: var(--font-mono);
-    padding: 1rem;
-    font-size: 0.8rem;
+    padding: 1.25rem;
+    font-size: 0.85rem;
     border: var(--bw) solid var(--border);
     border-radius: calc(var(--radius) / 2);
+    line-height: 1.6;
 }
 
 /* --- Footer --- */
 .footer {
-    padding: 3rem 1.5rem;
+    padding: 4rem 2rem;
     text-align: center;
-    font-size: 0.8rem;
-    font-weight: 700;
+    font-size: 0.85rem;
+    font-weight: 800;
     text-transform: uppercase;
     border-top: var(--bw) solid var(--border);
     background: var(--surface);
     color: var(--text-muted);
 }
 
-.link { color: inherit; font-weight: 800; }
+.link { color: var(--accent); font-weight: 900; text-decoration: none; }
+.link:hover { text-decoration: underline; }

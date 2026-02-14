@@ -11,8 +11,8 @@ class App {
         this.targetAccount = null;
         
         this.api = new TidalAPI(
-            localStorage.getItem('tidal_client_id') || 'p0qE9u9V8V8v8V8v',
-            localStorage.getItem('tidal_proxy') || 'https://corsproxy.io/?'
+            localStorage.getItem('tidal_client_id') || 'zU4XSTBY6v3sq4Ax',
+            localStorage.getItem('tidal_proxy') || 'https://api.allorigins.win/raw?url='
         );
 
         this.initUI();
@@ -37,10 +37,7 @@ class App {
 
         applyTheme(savedTheme);
         themeBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const targetTheme = btn.getAttribute('data-theme');
-                applyTheme(targetTheme);
-            });
+            btn.addEventListener('click', () => applyTheme(btn.getAttribute('data-theme')));
         });
 
         // Auth buttons
@@ -51,9 +48,15 @@ class App {
 
         // Settings
         document.getElementById('btn-settings').onclick = () => this.toggleModal('settings-modal', true);
+        
+        const proxyInput = document.getElementById('input-proxy');
+        const clientInput = document.getElementById('input-client-id');
+        proxyInput.value = this.api.proxyUrl;
+        clientInput.value = this.api.clientId;
+
         document.getElementById('btn-settings-close').onclick = () => {
-            const proxy = document.getElementById('input-proxy').value;
-            const clientId = document.getElementById('input-client-id').value;
+            const proxy = proxyInput.value;
+            const clientId = clientInput.value;
             localStorage.setItem('tidal_proxy', proxy);
             localStorage.setItem('tidal_client_id', clientId);
             this.api.setProxy(proxy);
@@ -73,8 +76,8 @@ class App {
         const source = JSON.parse(localStorage.getItem(STORAGE_KEY_SOURCE));
         const target = JSON.parse(localStorage.getItem(STORAGE_KEY_TARGET));
 
-        if (source) await this.handleSuccessfulLogin('source', source);
-        if (target) await this.handleSuccessfulLogin('target', target);
+        if (source) await this.handleSuccessfulLogin('source', source).catch(e => console.warn('Source session expired', e));
+        if (target) await this.handleSuccessfulLogin('target', target).catch(e => console.warn('Target session expired', e));
     }
 
     async startLogin(type) {
@@ -102,9 +105,8 @@ class App {
             
             await this.handleSuccessfulLogin(type, tokens);
         } catch (e) {
-            let msg = e.message;
-            if (msg.includes('401')) msg = 'Unauthorized (401). Try changing Client ID in Settings.';
-            alert(`Login Error: ${msg}`);
+            console.error('Login Error Detail:', e);
+            alert(`Login Error: ${e.message}\nTry changing the Proxy URL in Settings.`);
             loginBtn.classList.remove('hidden');
             flowContainer.classList.add('hidden');
         }
@@ -112,8 +114,6 @@ class App {
 
     async handleSuccessfulLogin(type, tokens) {
         try {
-            // Check if token needs refresh (simplified)
-            // For now, just save it
             localStorage.setItem(type === 'source' ? STORAGE_KEY_SOURCE : STORAGE_KEY_TARGET, JSON.stringify(tokens));
 
             const session = await this.api.getProfile(tokens.access_token);
@@ -122,7 +122,7 @@ class App {
             document.getElementById(`${type}-device-flow`).classList.add('hidden');
             document.getElementById(`${type}-profile`).classList.remove('hidden');
             
-            document.getElementById(`${type}-username`).textContent = session.userId; // Profile API needed for real name
+            document.getElementById(`${type}-username`).textContent = session.userId || 'Connected';
             
             if (type === 'source') {
                 this.sourceAccount = { tokens, userId: session.userId };
@@ -134,8 +134,9 @@ class App {
 
             this.checkTransferReadiness();
         } catch (e) {
-            console.error(e);
+            console.error('Profile/Session error:', e);
             this.logout(type);
+            throw e;
         }
     }
 
@@ -188,16 +189,23 @@ class App {
         };
 
         let totalItems = 0;
-        types.forEach(t => totalItems += this.sourceAccount[t].length);
+        types.forEach(t => totalItems += (this.sourceAccount[t] ? this.sourceAccount[t].length : 0));
         
+        if (totalItems === 0) return addLog('No items found in source account.');
+
         let completed = 0;
         addLog(`Starting transfer of ${totalItems} items...`);
 
         for (const type of types) {
             addLog(`Transferring ${type}...`);
+            if (!this.sourceAccount[type]) continue;
+
             for (const item of this.sourceAccount[type]) {
-                const itemId = item.item ? item.item.id : (item.track ? item.track.id : (item.artist ? item.artist.id : item.album.id));
-                const itemName = item.item ? (item.item.title || item.item.name) : (item.track ? item.track.title : (item.artist ? item.artist.name : item.album.title));
+                const inner = item.item || item.track || item.artist || item.album;
+                const itemId = inner ? inner.id : null;
+                const itemName = inner ? (inner.title || inner.name) : 'Unknown Item';
+
+                if (!itemId) continue;
 
                 try {
                     await this.api.addFavorite(this.targetAccount.userId, this.targetAccount.tokens.access_token, type, itemId);
