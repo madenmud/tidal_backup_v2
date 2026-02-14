@@ -74,7 +74,12 @@ class App {
             const deviceCode = deviceAuth.device_code || deviceAuth.deviceCode;
 
             codeEl.textContent = userCode;
-            popupBtn.onclick = () => window.open(`https://link.tidal.com/${userCode}`, '_blank');
+            const tidalUrl = `https://link.tidal.com/${userCode}`;
+            const openPopup = () => {
+                window.open(tidalUrl, 'tidal_login', 'width=420,height=680,scrollbars=yes,resizable=yes');
+            };
+            openPopup();
+            popupBtn.onclick = openPopup;
 
             let timeLeft = deviceAuth.expires_in || 300;
             const countdown = setInterval(() => {
