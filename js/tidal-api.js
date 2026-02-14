@@ -17,11 +17,9 @@ class TidalAPI {
         let targetUrl = url;
         const proxy = this.proxyUrl || '';
         
-        // Fix encoding for different proxies
         if (proxy.includes('allorigins')) {
             targetUrl = `${proxy}${encodeURIComponent(url)}`;
         } else {
-            // For corsproxy.io style, don't encode the full URL
             targetUrl = `${proxy}${url}`;
         }
 
@@ -32,12 +30,13 @@ class TidalAPI {
                 ...options,
                 headers: {
                     ...options.headers,
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded' // Force this for all POSTs
                 }
             });
             
             const text = await response.text();
-            console.log(`[TidalAPI] Response Status: ${response.status}`);
+            console.log(`[TidalAPI] Status: ${response.status}`);
             
             if (!response.ok) {
                 console.error(`[TidalAPI] Error Body:`, text);
@@ -61,13 +60,10 @@ class TidalAPI {
     async getDeviceCode() {
         const params = new URLSearchParams();
         params.append('client_id', this.clientId);
-        params.append('scope', 'r_usr w_usr w_sub');
+        params.append('scope', 'r_usr+w_usr+w_sub'); // Use + instead of space just in case
 
         return this.fetchWithProxy(`${this.authBase}/oauth2/device_authorization`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
             body: params.toString()
         });
     }
@@ -83,9 +79,6 @@ class TidalAPI {
                 try {
                     const data = await this.fetchWithProxy(`${this.authBase}/oauth2/token`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
                         body: params.toString()
                     });
                     
