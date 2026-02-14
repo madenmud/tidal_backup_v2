@@ -140,7 +140,14 @@ class App {
     async refreshStats(type) {
         const account = this.accounts[type];
         const types = ['tracks', 'artists', 'albums', 'playlists'];
+        let apiRestricted = false;
         for (const t of types) {
+            if (apiRestricted) {
+                const el = document.getElementById(`${type}-stat-${t}`);
+                if (el) el.textContent = '—';
+                account[t] = [];
+                continue;
+            }
             try {
                 const items = await this.api.getFavorites(account.userId, account.tokens.access_token, t);
                 const el = document.getElementById(`${type}-stat-${t}`);
@@ -148,8 +155,8 @@ class App {
                 account[t] = items;
             } catch (e) {
                 const msg = (e.message || '').toLowerCase();
-                const isApiRestricted = msg.includes('404') || msg.includes('non-json') || msg.includes('403');
-                if (!isApiRestricted) console.error(`Stat error (${t}):`, e);
+                apiRestricted = msg.includes('404') || msg.includes('non-json') || msg.includes('403');
+                if (!apiRestricted) console.error(`Stat error (${t}):`, e);
                 const el = document.getElementById(`${type}-stat-${t}`);
                 if (el) el.textContent = '—';
                 account[t] = [];
