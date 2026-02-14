@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=JetBrains+Mono:wght@500;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="theme-brutalist">
+<body class="theme-modern">
     <header class="header">
         <h1 class="title">Tidal Backup V2 🤖</h1>
         <div class="header-actions">
@@ -106,6 +106,19 @@
     <div id="settings-modal" class="modal hidden">
         <div class="modal-content">
             <h2>Settings</h2>
+            
+            <div class="settings-group">
+                <label>Theme Appearance</label>
+                <div class="theme-options">
+                    <button type="button" class="theme-btn" data-theme="modern">
+                        Modern Glass
+                    </button>
+                    <button type="button" class="theme-btn" data-theme="brutalist">
+                        Neo-Brutalist
+                    </button>
+                </div>
+            </div>
+
             <div class="settings-group">
                 <label>CORS Proxy</label>
                 <input type="text" id="input-proxy" class="input" value="https://corsproxy.io/?">

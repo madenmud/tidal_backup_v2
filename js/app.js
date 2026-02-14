@@ -20,6 +20,24 @@ class App {
     }
 
     initUI() {
+        // Theme Management
+        const themeBtns = document.querySelectorAll('.theme-btn');
+        const savedTheme = localStorage.getItem('hifi-theme') || 'modern';
+        
+        const applyTheme = (theme) => {
+            document.body.classList.remove('theme-modern', 'theme-brutalist');
+            document.body.classList.add(`theme-${theme}`);
+            localStorage.setItem('hifi-theme', theme);
+            themeBtns.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === theme);
+            });
+        };
+
+        applyTheme(savedTheme);
+        themeBtns.forEach(btn => {
+            btn.onclick = () => applyTheme(btn.dataset.theme);
+        });
+
         // Auth buttons
         document.getElementById('btn-source-login').onclick = () => this.startLogin('source');
         document.getElementById('btn-target-login').onclick = () => this.startLogin('target');
