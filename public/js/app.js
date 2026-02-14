@@ -140,14 +140,19 @@ class App {
     async refreshStats(type) {
         const account = this.accounts[type];
         const types = ['tracks', 'artists', 'albums', 'playlists'];
-        let apiRestricted = false;
-        for (const t of types) {
-            if (apiRestricted) {
+        const probe = await this._getFavoritesOrNull(account.userId, account.tokens.access_token, 'tracks');
+        if (probe === null) {
+            for (const t of types) {
                 const el = document.getElementById(`${type}-stat-${t}`);
                 if (el) el.textContent = '—';
                 account[t] = [];
-                continue;
             }
+            return;
+        }
+        account.tracks = probe;
+        const el0 = document.getElementById(`${type}-stat-tracks`);
+        if (el0) el0.textContent = probe.length;
+        for (const t of types.slice(1)) {
             try {
                 const items = await this.api.getFavorites(account.userId, account.tokens.access_token, t);
                 const el = document.getElementById(`${type}-stat-${t}`);
@@ -155,12 +160,22 @@ class App {
                 account[t] = items;
             } catch (e) {
                 const msg = (e.message || '').toLowerCase();
-                apiRestricted = (e.status === 404 || e.status === 403) || msg.includes('404') || msg.includes('403') || msg.includes('non-json') || msg.includes('not found');
-                if (!apiRestricted) console.error(`Stat error (${t}):`, e);
+                if (!msg.includes('404') && !msg.includes('403') && e.status !== 404 && e.status !== 403) console.error(`Stat error (${t}):`, e);
                 const el = document.getElementById(`${type}-stat-${t}`);
                 if (el) el.textContent = '—';
                 account[t] = [];
             }
+        }
+    }
+
+    async _getFavoritesOrNull(userId, accessToken, itemType) {
+        try {
+            return await this.api.getFavorites(userId, accessToken, itemType);
+        } catch (e) {
+            const msg = (e.message || '').toLowerCase();
+            const restricted = (e.status === 404 || e.status === 403) || msg.includes('404') || msg.includes('403');
+            if (!restricted) console.error(`Stat error (${itemType}):`, e);
+            return null;
         }
     }
 
