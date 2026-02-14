@@ -155,7 +155,7 @@ class App {
                 account[t] = items;
             } catch (e) {
                 const msg = (e.message || '').toLowerCase();
-                apiRestricted = msg.includes('404') || msg.includes('403') || msg.includes('non-json') || msg.includes('not found');
+                apiRestricted = (e.status === 404 || e.status === 403) || msg.includes('404') || msg.includes('403') || msg.includes('non-json') || msg.includes('not found');
                 if (!apiRestricted) console.error(`Stat error (${t}):`, e);
                 const el = document.getElementById(`${type}-stat-${t}`);
                 if (el) el.textContent = '—';

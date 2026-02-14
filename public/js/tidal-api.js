@@ -26,11 +26,23 @@ class TidalAPI {
 
         try {
             const response = await fetch(targetUrl, { method: options.method || 'GET', headers, body });
-            const data = await response.json();
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseErr) {
+                if (!response.ok && (response.status === 404 || response.status === 403)) {
+                    const err = new Error(`HTTP ${response.status}`);
+                    err.status = response.status;
+                    throw err;
+                }
+                throw parseErr;
+            }
             if (!response.ok) {
                 const status = response.status;
                 const errMsg = (status === 404 || status === 403) ? `HTTP ${status}` : (data.errors?.[0]?.detail || data.error_description || (data.error && data.message ? `${data.error}: ${data.message}` : data.error || data.message) || `HTTP ${status}`);
-                throw new Error(errMsg);
+                const err = new Error(errMsg);
+                err.status = status;
+                throw err;
             }
             return data;
         } catch (error) {
