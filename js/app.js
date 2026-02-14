@@ -11,7 +11,7 @@ class App {
         this.targetAccount = null;
         
         this.api = new TidalAPI(
-            localStorage.getItem('tidal_client_id') || 'zU4XSTBY6v3sq4Ax',
+            localStorage.getItem('tidal_client_id') || 'p0qE9u9V8V8v8V8v',
             localStorage.getItem('tidal_proxy') || 'https://corsproxy.io/?'
         );
 
@@ -79,7 +79,9 @@ class App {
             
             await this.handleSuccessfulLogin(type, tokens);
         } catch (e) {
-            alert(`Login Error: ${e.message}`);
+            let msg = e.message;
+            if (msg.includes('401')) msg = 'Unauthorized (401). Try changing Client ID in Settings.';
+            alert(`Login Error: ${msg}`);
             loginBtn.classList.remove('hidden');
             flowContainer.classList.add('hidden');
         }

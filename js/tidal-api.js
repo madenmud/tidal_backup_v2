@@ -33,7 +33,10 @@ class TidalAPI {
 
         return this.fetchWithProxy(`${this.authBase}/oauth2/device_authorization`, {
             method: 'POST',
-            body: params
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: params.toString()
         });
     }
 
@@ -49,7 +52,10 @@ class TidalAPI {
                 try {
                     const data = await this.fetchWithProxy(`${this.authBase}/oauth2/token`, {
                         method: 'POST',
-                        body: params
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: params.toString()
                     });
                     
                     if (data.access_token) {
