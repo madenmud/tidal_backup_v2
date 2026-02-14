@@ -15,16 +15,15 @@ class TidalAPI {
 
     async fetchWithProxy(url, options = {}, retryCount = 0) {
         const proxies = [
-            'https://thingproxy.freeboard.io/fetch/',
             'https://api.allorigins.win/raw?url=',
+            'https://api.codetabs.com/v1/proxy?quest=',
+            'https://thingproxy.freeboard.io/fetch/',
             'https://corsproxy.io/?'
         ];
         
-        // Use provided proxy first, then fallback to list
-        const currentProxy = retryCount === 0 ? (this.proxyUrl || proxies[0]) : proxies[retryCount - 1];
+        // Correctly cycle through proxies
+        const currentProxy = retryCount === 0 && this.proxyUrl ? this.proxyUrl : proxies[retryCount % proxies.length];
         
-        if (!currentProxy) return fetch(url, options).then(r => r.json());
-
         let targetUrl = url;
         if (currentProxy.includes('allorigins') || currentProxy.includes('codetabs')) {
             targetUrl = `${currentProxy}${encodeURIComponent(url)}`;
@@ -46,11 +45,11 @@ class TidalAPI {
             const text = await response.text();
             
             if (!response.ok) {
-                console.warn(`[TidalAPI] Proxy failed (${response.status}):`, text);
-                if (retryCount < proxies.length) {
+                console.warn(`[TidalAPI] Proxy failed (${response.status}) attempt ${retryCount + 1}`);
+                if (retryCount < proxies.length - 1) {
                     return this.fetchWithProxy(url, options, retryCount + 1);
                 }
-                throw new Error(`All proxies failed. Final error: ${response.status}`);
+                throw new Error(`All proxies failed. Final status: ${response.status}`);
             }
 
             try {
@@ -60,7 +59,7 @@ class TidalAPI {
             }
         } catch (e) {
             console.error(`[TidalAPI] Fetch error on attempt ${retryCount + 1}:`, e);
-            if (retryCount < proxies.length) {
+            if (retryCount < proxies.length - 1) {
                 return this.fetchWithProxy(url, options, retryCount + 1);
             }
             throw e;

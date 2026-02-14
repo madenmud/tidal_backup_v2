@@ -10,7 +10,7 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v20'; // Fallback logic version
+        const currentVersion = 'v21'; // Polling fix version
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -21,7 +21,7 @@ class App {
 
         this.api = new TidalAPI(
             localStorage.getItem('tidal_client_id') || 'zU4XHVVkc2tDPo4t', // Android TV ID
-            localStorage.getItem('tidal_proxy') || 'https://thingproxy.freeboard.io/fetch/'
+            localStorage.getItem('tidal_proxy') || 'https://api.allorigins.win/raw?url='
         );
 
         this.initUI();
