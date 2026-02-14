@@ -18,12 +18,11 @@ class TidalAPI {
             'https://api.allorigins.win/raw?url=',
             'https://cors-anywhere.azm.workers.dev/',
             'https://thingproxy.freeboard.io/fetch/',
-            'https://cors-proxy.htmldriven.com/?url='
+            'https://corsproxy.io/?'
         ];
         
         const currentProxy = retryCount === 0 && this.proxyUrl ? this.proxyUrl : proxies[retryCount % proxies.length];
         
-        // Remove '?' confusion: AllOrigins needs encoding, others vary
         let targetUrl = `${currentProxy}${encodeURIComponent(url)}`;
         if (currentProxy.includes('thingproxy')) {
             targetUrl = `${currentProxy}${url}`;
@@ -32,11 +31,19 @@ class TidalAPI {
         console.log(`[TidalAPI] Attempt ${retryCount + 1}: ${targetUrl}`);
         
         try {
-            // CRITICAL: Remove custom headers like X-Requested-With to avoid preflight (CORS) failure
             const fetchOptions = {
                 method: options.method || 'GET',
-                body: options.body
+                body: options.body,
+                headers: {
+                    // MUST include Content-Type for POST with body, but keep it 'simple'
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
             };
+
+            // Only add headers if it's a POST
+            if (fetchOptions.method !== 'POST') {
+                delete fetchOptions.headers;
+            }
 
             const response = await fetch(targetUrl, fetchOptions);
             
