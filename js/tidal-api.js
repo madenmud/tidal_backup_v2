@@ -17,10 +17,9 @@ class TidalAPI {
         let targetUrl = url;
         const proxy = this.proxyUrl || '';
         
-        if (proxy.includes('allorigins')) {
+        // IMPORTANT: Always encode the target URL to avoid double '?' confusion
+        if (proxy) {
             targetUrl = `${proxy}${encodeURIComponent(url)}`;
-        } else {
-            targetUrl = `${proxy}${url}`;
         }
 
         console.log(`[TidalAPI] Fetching: ${targetUrl}`);
@@ -31,7 +30,7 @@ class TidalAPI {
                 headers: {
                     ...options.headers,
                     'Accept': 'application/json',
-                    'Content-Type': 'application/x-www-form-urlencoded' // Force this for all POSTs
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 }
             });
             
@@ -103,15 +102,14 @@ class TidalAPI {
     }
 
     async refreshToken(refreshToken) {
-        const params = new URLSearchParams({
-            client_id: this.clientId,
-            refresh_token: refreshToken,
-            grant_type: 'refresh_token'
-        });
+        const params = new URLSearchParams();
+        params.append('client_id', this.clientId);
+        params.append('refresh_token', refreshToken);
+        params.append('grant_type', 'refresh_token');
 
         return this.fetchWithProxy(`${this.authBase}/oauth2/token`, {
             method: 'POST',
-            body: params
+            body: params.toString()
         });
     }
 
@@ -156,7 +154,7 @@ class TidalAPI {
         return this.fetchWithProxy(`${this.apiBase}/users/${userId}/favorites/${endpointMap[type]}`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${accessToken}` },
-            body: params
+            body: params.toString()
         });
     }
 }
