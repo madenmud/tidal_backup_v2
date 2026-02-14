@@ -95,18 +95,23 @@ class TidalAPI {
                         body: params.toString()
                     });
                     
-                    if (data.access_token) {
+                    console.log('[TidalAPI] Poll Response:', data);
+
+                    if (data && data.access_token) {
                         resolve(data);
-                    } else if (data.error === 'authorization_pending') {
+                    } else if (data && (data.error === 'authorization_pending' || data.status === 'authorization_pending')) {
                         setTimeout(poll, pollInterval);
                     } else {
-                        reject(new Error(data.error_description || data.error));
+                        const msg = data ? (data.error_description || data.error || JSON.stringify(data)) : 'Empty response';
+                        reject(new Error(`Poll Failed: ${msg}`));
                     }
                 } catch (e) {
-                    // If it's just a 400 with 'authorization_pending', keep going
-                    if (e.message.includes('authorization_pending')) {
+                    // Check if the error message itself contains the pending signal
+                    const errorStr = e.message.toLowerCase();
+                    if (errorStr.includes('authorization_pending')) {
                         setTimeout(poll, pollInterval);
                     } else {
+                        console.error('[TidalAPI] Poll Catch Error:', e);
                         reject(e);
                     }
                 }

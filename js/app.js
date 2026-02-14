@@ -10,7 +10,7 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v17'; // New version with user presets
+        const currentVersion = 'v18'; // Version 18
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -20,7 +20,7 @@ class App {
         }
 
         this.api = new TidalAPI(
-            localStorage.getItem('tidal_client_id') || 'pUBRShyxR8fkaI0D', // New Web Default
+            localStorage.getItem('tidal_client_id') || 'zU4XSTBY6v3sq4Ax', // Back to Standard for testing
             localStorage.getItem('tidal_proxy') || 'https://api.codetabs.com/v1/proxy?quest='
         );
 
