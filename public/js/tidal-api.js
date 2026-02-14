@@ -13,6 +13,7 @@ class TidalAPI {
     async fetchProxy(url, options = {}) {
         const targetUrl = `${this.proxyEndpoint}${encodeURIComponent(url)}`;
         let body = options.body;
+        const suppressLog = options.suppressLog === true;
         const isAuth = url.startsWith(this.authBase);
         const baseHeaders = isAuth ? { 'Accept': 'application/json' } : this.apiHeaders;
         const headers = { ...baseHeaders, ...options.headers };
@@ -32,6 +33,7 @@ class TidalAPI {
             }
             return data;
         } catch (error) {
+            if (suppressLog) { throw error; }
             const msg = (error.message || '').toLowerCase();
             const isPendingAuth = msg.includes('authorization_pending') || msg.includes('not authorized yet') || msg.includes('slow_down');
             const isExpectedRestriction = msg.includes('404') || msg.includes('403');
@@ -136,7 +138,8 @@ class TidalAPI {
                     let url = urlFn();
                     if (cursor) url += `&page[cursor]=${encodeURIComponent(cursor)}`;
                     const data = await this.fetchProxy(url, {
-                        headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/vnd.api+json' }
+                        headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/vnd.api+json' },
+                        suppressLog: true
                     });
                     items = items.concat(this._parseItems(data));
                     cursor = data.meta?.pageCursor || null;
