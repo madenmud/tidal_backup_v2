@@ -55,30 +55,34 @@ class TidalAPI {
     // --- Authentication (Device Flow) ---
 
     async getDeviceCode() {
-        const params = new URLSearchParams({
-            client_id: this.clientId,
-            scope: 'r_usr w_usr w_sub'
-        });
+        const params = new URLSearchParams();
+        params.append('client_id', this.clientId);
+        params.append('scope', 'r_usr w_usr w_sub');
 
         return this.fetchWithProxy(`${this.authBase}/oauth2/device_authorization`, {
             method: 'POST',
-            body: params // Fetch handles URLSearchParams automatically
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: params.toString()
         });
     }
 
     async pollForToken(deviceCode, interval) {
-        const params = new URLSearchParams({
-            client_id: this.clientId,
-            device_code: deviceCode,
-            grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
-        });
+        const params = new URLSearchParams();
+        params.append('client_id', this.clientId);
+        params.append('device_code', deviceCode);
+        params.append('grant_type', 'urn:ietf:params:oauth:grant-type:device_code');
 
         return new Promise((resolve, reject) => {
             const poll = setInterval(async () => {
                 try {
                     const data = await this.fetchWithProxy(`${this.authBase}/oauth2/token`, {
                         method: 'POST',
-                        body: params
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: params.toString()
                     });
                     
                     if (data.access_token) {
