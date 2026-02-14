@@ -10,9 +10,9 @@ class TidalAPI {
         
         // Priority list of proxies
         this.proxies = [
+            'https://api.allorigins.win/raw?url=',
             'https://corsproxy.io/?',
             'https://thingproxy.freeboard.io/fetch/',
-            'https://api.allorigins.win/raw?url=',
             'https://api.codetabs.com/v1/proxy?quest='
         ];
     }
@@ -41,7 +41,7 @@ class TidalAPI {
                 }
             };
 
-            // Force Content-Type for POST to satisfy proxies/Tidal
+            // Force Content-Type for POST
             if (options.method === 'POST') {
                 fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
             }
@@ -51,8 +51,10 @@ class TidalAPI {
 
             if (!response.ok) {
                 console.warn(`[TidalAPI] Attempt ${retryCount + 1} failed with status ${response.status}`);
-                // Don't retry if it's a 401 (Invalid Client) - that's a configuration issue
-                if (response.status === 401) {
+                
+                // If it's a 401, the Client ID is rejected - but some proxies return 401 for other reasons.
+                // We'll retry once with another proxy just in case.
+                if (response.status === 401 && retryCount > 0) {
                     throw new Error(`Unauthorized (401). Invalid Client ID?`);
                 }
                 return this.fetchWithFallback(url, options, retryCount + 1);
@@ -61,12 +63,11 @@ class TidalAPI {
             try {
                 return JSON.parse(text);
             } catch (e) {
-                // If it's not JSON but 200 OK, might be a text response
                 return { status: 'ok', raw: text };
             }
         } catch (e) {
             console.error(`[TidalAPI] Fetch error on attempt ${retryCount + 1}:`, e);
-            if (e.message.includes('401')) throw e; // Stop on auth error
+            if (e.message.includes('401')) throw e;
             return this.fetchWithFallback(url, options, retryCount + 1);
         }
     }
@@ -74,28 +75,23 @@ class TidalAPI {
     // --- Auth Flow ---
 
     async getDeviceCode() {
-        const params = new URLSearchParams({
+        const body = new URLSearchParams({
             client_id: this.clientId,
             scope: 'r_usr w_usr'
         });
 
-        // Some proxies prefer params in URL for better success
-        const url = `${this.authBase}/oauth2/device_authorization?${params.toString()}`;
-
-        return this.fetchWithFallback(url, {
+        return this.fetchWithFallback(`${this.authBase}/oauth2/device_authorization`, {
             method: 'POST',
-            body: params.toString()
+            body: body.toString()
         });
     }
 
     async pollForToken(deviceCode, interval = 5) {
-        const params = new URLSearchParams({
+        const body = new URLSearchParams({
             client_id: this.clientId,
             device_code: deviceCode,
             grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
         });
-
-        const url = `${this.authBase}/oauth2/token?${params.toString()}`;
 
         return new Promise((resolve, reject) => {
             const startTime = Date.now();
@@ -108,21 +104,20 @@ class TidalAPI {
                 }
 
                 try {
-                    const data = await this.fetchWithFallback(url, {
+                    const data = await this.fetchWithFallback(`${this.authBase}/oauth2/token`, {
                         method: 'POST',
-                        body: params.toString()
+                        body: body.toString()
                     });
 
-                    if (data.access_token) {
+                    if (data && data.access_token) {
                         resolve(data);
-                    } else if (data.error === 'authorization_pending') {
+                    } else if (data && (data.error === 'authorization_pending' || data.status === 'authorization_pending')) {
                         setTimeout(poll, pollInterval);
                     } else {
                         reject(new Error(data.error_description || data.error));
                     }
                 } catch (e) {
-                    // If proxy returns 400 for pending, treat it as pending
-                    if (e.message.includes('pending') || e.message.includes('400')) {
+                    if (e.message.toLowerCase().includes('pending') || e.message.includes('400') || e.message.includes('403')) {
                         setTimeout(poll, pollInterval);
                     } else {
                         reject(e);
@@ -143,7 +138,6 @@ class TidalAPI {
     }
 
     async getFavorites(userId, accessToken, type) {
-        // type: tracks, artists, albums
         let items = [];
         let offset = 0;
         const limit = 100;

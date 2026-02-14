@@ -8,7 +8,7 @@ class App {
             target: null
         };
 
-        const currentVersion = 'v2.0.1';
+        const currentVersion = 'v2.0.2';
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -17,7 +17,7 @@ class App {
             localStorage.setItem('tidal_v2_version', currentVersion);
         }
 
-        this.clientId = localStorage.getItem('tidal_v2_client_id') || 'pUBRShyxR8fkaI0D';
+        this.clientId = localStorage.getItem('tidal_v2_client_id') || 'zU4XSTBY6v3sq4Ax';
         this.api = new TidalAPI(this.clientId);
 
         this.initUI();
