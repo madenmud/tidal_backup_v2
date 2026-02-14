@@ -10,7 +10,7 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v16'; // Version 16
+        const currentVersion = 'v17'; // New version with user presets
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -20,7 +20,7 @@ class App {
         }
 
         this.api = new TidalAPI(
-            localStorage.getItem('tidal_client_id') || 'zU4XSTBY6v3sq4Ax',
+            localStorage.getItem('tidal_client_id') || 'pUBRShyxR8fkaI0D', // New Web Default
             localStorage.getItem('tidal_proxy') || 'https://api.codetabs.com/v1/proxy?quest='
         );
 
@@ -62,6 +62,13 @@ class App {
         const clientInput = document.getElementById('input-client-id');
         proxyInput.value = this.api.proxyUrl;
         clientInput.value = this.api.clientId;
+
+        // Key Presets
+        document.querySelectorAll('.preset-key').forEach(btn => {
+            btn.onclick = () => {
+                clientInput.value = btn.getAttribute('data-key');
+            };
+        });
 
         document.getElementById('btn-settings-close').onclick = () => {
             const proxy = proxyInput.value;
