@@ -8,7 +8,7 @@ class App {
             target: null
         };
 
-        this.clientId = localStorage.getItem('tidal_v2_client_id') || '8S9vSbe9v8V8v8V8';
+        this.clientId = localStorage.getItem('tidal_v2_client_id') || 'pUBRShyxR8fkaI0D';
         this.api = new TidalAPI(this.clientId);
 
         this.initUI();
@@ -112,6 +112,7 @@ class App {
         localStorage.setItem(`tidal_v2_session_${type}`, JSON.stringify(tokens));
         
         try {
+            console.log(`[App] Handling auth success for ${type}`);
             const session = await this.api.getSessions(tokens.access_token);
             this.accounts[type] = { 
                 tokens, 
@@ -121,13 +122,16 @@ class App {
             document.getElementById(`btn-${type}-login`).classList.add('hidden');
             document.getElementById(`${type}-device-flow`).classList.add('hidden');
             document.getElementById(`${type}-profile`).classList.remove('hidden');
-            document.getElementById(`${type}-username`).textContent = `User ID: ${session.userId}`;
+            document.getElementById(`${type}-username`).textContent = `User: ${session.userId}`;
 
             await this.refreshStats(type);
             this.checkReadiness();
         } catch (e) {
-            console.error(e);
-            this.logout(type);
+            console.error('[App] Auth success handler error:', e);
+            // Don't logout immediately if it's just a stat refresh error
+            if (e.message.includes('401')) {
+                this.logout(type);
+            }
         }
     }
 

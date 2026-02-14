@@ -10,9 +10,9 @@ class TidalAPI {
         
         // Priority list of proxies
         this.proxies = [
-            'https://api.allorigins.win/raw?url=',
             'https://corsproxy.io/?',
             'https://thingproxy.freeboard.io/fetch/',
+            'https://api.allorigins.win/raw?url=',
             'https://api.codetabs.com/v1/proxy?quest='
         ];
     }
@@ -74,23 +74,28 @@ class TidalAPI {
     // --- Auth Flow ---
 
     async getDeviceCode() {
-        const body = new URLSearchParams({
+        const params = new URLSearchParams({
             client_id: this.clientId,
             scope: 'r_usr w_usr'
         });
 
-        return this.fetchWithFallback(`${this.authBase}/oauth2/device_authorization`, {
+        // Some proxies prefer params in URL for better success
+        const url = `${this.authBase}/oauth2/device_authorization?${params.toString()}`;
+
+        return this.fetchWithFallback(url, {
             method: 'POST',
-            body: body.toString()
+            body: params.toString()
         });
     }
 
     async pollForToken(deviceCode, interval = 5) {
-        const body = new URLSearchParams({
+        const params = new URLSearchParams({
             client_id: this.clientId,
             device_code: deviceCode,
             grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
         });
+
+        const url = `${this.authBase}/oauth2/token?${params.toString()}`;
 
         return new Promise((resolve, reject) => {
             const startTime = Date.now();
@@ -103,9 +108,9 @@ class TidalAPI {
                 }
 
                 try {
-                    const data = await this.fetchWithFallback(`${this.authBase}/oauth2/token`, {
+                    const data = await this.fetchWithFallback(url, {
                         method: 'POST',
-                        body: body.toString()
+                        body: params.toString()
                     });
 
                     if (data.access_token) {
