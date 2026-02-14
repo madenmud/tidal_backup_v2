@@ -1,4 +1,4 @@
-// api/proxy.js - Private CORS Proxy for Tidal API
+// api/proxy.js - Private Transparent Proxy for Tidal API
 export default async function handler(req, res) {
     const { url } = req.query;
 
@@ -6,7 +6,6 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Missing url parameter' });
     }
 
-    // Only allow Tidal API domains for security
     if (!url.startsWith('https://api.tidal.com/') && !url.startsWith('https://auth.tidal.com/')) {
         return res.status(403).json({ error: 'Forbidden target domain' });
     }
@@ -21,23 +20,22 @@ export default async function handler(req, res) {
             headers['Authorization'] = req.headers.authorization;
         }
 
-        let body;
+        let body = undefined;
         if (req.method === 'POST') {
             const contentType = req.headers['content-type'] || 'application/json';
             headers['Content-Type'] = contentType;
-            
+
             if (contentType.includes('application/x-www-form-urlencoded')) {
-                // If it came in as a string/buffer, pass it along. 
-                // Vercel parses bodies, so if it's already an object, convert back to form-urlencoded
-                if (typeof req.body === 'object') {
-                    body = new URLSearchParams(req.body).toString();
-                } else {
-                    body = req.body;
-                }
+                // Convert parsed object back to form string
+                body = new URLSearchParams(req.body).toString();
+            } else if (contentType.includes('application/json')) {
+                body = JSON.stringify(req.body);
             } else {
-                body = typeof req.body === 'object' ? JSON.stringify(req.body) : req.body;
+                body = req.body;
             }
         }
+
+        console.log(`[Proxy] ${req.method} -> ${url}`);
 
         const response = await fetch(url, {
             method: req.method,
@@ -47,17 +45,17 @@ export default async function handler(req, res) {
 
         const data = await response.json().catch(async () => {
             const text = await response.text();
-            return { raw: text };
+            try { return JSON.parse(text); } catch(e) { return { raw: text }; }
         });
         
-        // Ensure CORS for our own frontend (though on the same domain it's not strictly needed)
+        // Ensure headers for client
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-        res.status(response.status).json(data);
+        return res.status(response.status).json(data);
     } catch (error) {
         console.error('Proxy Error:', error);
-        res.status(500).json({ error: 'Failed to fetch from Tidal API', details: error.message });
+        return res.status(500).json({ error: 'Proxy Exception', message: error.message });
     }
 }

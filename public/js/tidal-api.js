@@ -1,6 +1,5 @@
 /**
  * Tidal API Wrapper for Vercel deployment
- * Uses private serverless proxy to bypass CORS/Header issues
  */
 class TidalAPI {
     constructor(clientId) {
@@ -10,59 +9,54 @@ class TidalAPI {
         this.proxyEndpoint = '/api/proxy?url=';
     }
 
-    /**
-     * Core fetcher using the private Vercel proxy
-     */
     async fetchProxy(url, options = {}) {
         const targetUrl = `${this.proxyEndpoint}${encodeURIComponent(url)}`;
         
-        console.log(`[TidalAPI] Calling Proxy: ${url}`);
-
         try {
-            const response = await fetch(targetUrl, {
+            const fetchOptions = {
                 method: options.method || 'GET',
                 headers: {
-                    'Content-Type': options.contentType || 'application/json',
                     ...options.headers
-                },
-                body: options.body
-            });
+                }
+            };
 
+            if (options.body) {
+                // If it's URLSearchParams, let the browser set the content-type
+                fetchOptions.body = options.body;
+            }
+
+            const response = await fetch(targetUrl, fetchOptions);
             const data = await response.json();
 
             if (!response.ok) {
-                console.error(`[TidalAPI] API Error:`, data);
                 throw new Error(data.error_description || data.error || `HTTP ${response.status}`);
             }
 
             return data;
         } catch (error) {
-            console.error(`[TidalAPI] Connection failed:`, error);
+            console.error(`[TidalAPI] Error:`, error);
             throw error;
         }
     }
 
-    // --- Auth Flow ---
-
     async getDeviceCode() {
-        const params = {
+        const body = new URLSearchParams({
             client_id: this.clientId,
-            scope: 'r_usr w_usr w_sub'
-        };
+            scope: 'r_usr w_usr'
+        });
 
         return this.fetchProxy(`${this.authBase}/oauth2/device_authorization`, {
             method: 'POST',
-            contentType: 'application/x-www-form-urlencoded',
-            body: new URLSearchParams(params).toString()
+            body: body
         });
     }
 
     async pollForToken(deviceCode, interval = 5) {
-        const params = {
+        const body = new URLSearchParams({
             client_id: this.clientId,
             device_code: deviceCode,
             grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
-        };
+        });
 
         return new Promise((resolve, reject) => {
             const startTime = Date.now();
@@ -71,20 +65,18 @@ class TidalAPI {
 
             const poll = async () => {
                 if (Date.now() - startTime > timeout) {
-                    return reject(new Error('Authentication timed out.'));
+                    return reject(new Error('Auth timed out.'));
                 }
 
                 try {
                     const data = await this.fetchProxy(`${this.authBase}/oauth2/token`, {
                         method: 'POST',
-                        contentType: 'application/x-www-form-urlencoded',
-                        body: new URLSearchParams(params).toString()
+                        body: body
                     });
 
                     if (data.access_token) {
                         resolve(data);
                     } else {
-                        // Pending or other error
                         setTimeout(poll, pollInterval);
                     }
                 } catch (e) {
@@ -99,8 +91,6 @@ class TidalAPI {
             setTimeout(poll, pollInterval);
         });
     }
-
-    // --- Data Methods ---
 
     async getSessions(accessToken) {
         return this.fetchProxy(`${this.apiBase}/sessions`, {
@@ -128,14 +118,13 @@ class TidalAPI {
 
     async addFavorite(userId, accessToken, type, id) {
         const endpointMap = { 'tracks': 'tracks', 'artists': 'artists', 'albums': 'albums' };
-        const params = {};
-        params[type === 'tracks' ? 'trackId' : (type === 'artists' ? 'artistId' : 'albumId')] = id;
+        const body = new URLSearchParams();
+        body.append(type === 'tracks' ? 'trackId' : (type === 'artists' ? 'artistId' : 'albumId'), id);
 
         return this.fetchProxy(`${this.apiBase}/users/${userId}/favorites/${endpointMap[type]}`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${accessToken}` },
-            contentType: 'application/x-www-form-urlencoded',
-            body: new URLSearchParams(params).toString()
+            body: body
         });
     }
 }
