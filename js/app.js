@@ -10,18 +10,18 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v6'; // Bumped again
+        const currentVersion = 'v7'; // Bumped version for new defaults
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
             console.log('New version detected, resetting defaults.');
-            localStorage.clear(); // Nuclear option to ensure clean state
+            localStorage.clear();
             localStorage.setItem('tidal_v2_version', currentVersion);
         }
 
         this.api = new TidalAPI(
-            localStorage.getItem('tidal_client_id') || 'zU4XSTBY6v3sq4Ax',
-            localStorage.getItem('tidal_proxy') || 'https://api.allorigins.win/raw?url='
+            localStorage.getItem('tidal_client_id') || 'p0qE9u9V8V8v8V8v',
+            localStorage.getItem('tidal_proxy') || 'https://corsproxy.io/?'
         );
 
         this.initUI();

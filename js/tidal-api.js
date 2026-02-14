@@ -17,15 +17,15 @@ class TidalAPI {
         let targetUrl = url;
         const proxy = this.proxyUrl || '';
         
-        // Ensure proxy format is correct
+        // Fix encoding for different proxies
         if (proxy.includes('allorigins')) {
             targetUrl = `${proxy}${encodeURIComponent(url)}`;
         } else {
-            // Ensure simple proxies like corsproxy.io have the full URL properly appended
-            targetUrl = proxy.endsWith('?') ? `${proxy}${url}` : `${proxy}${encodeURIComponent(url)}`;
+            // For corsproxy.io style, don't encode the full URL
+            targetUrl = `${proxy}${url}`;
         }
 
-        console.log(`[TidalAPI] Target: ${targetUrl}`);
+        console.log(`[TidalAPI] Fetching: ${targetUrl}`);
         
         try {
             const response = await fetch(targetUrl, {
@@ -37,9 +37,10 @@ class TidalAPI {
             });
             
             const text = await response.text();
+            console.log(`[TidalAPI] Response Status: ${response.status}`);
             
             if (!response.ok) {
-                console.error(`[TidalAPI] Error ${response.status}:`, text);
+                console.error(`[TidalAPI] Error Body:`, text);
                 let errorMsg = `HTTP ${response.status}`;
                 try {
                     const errorJson = JSON.parse(text);
@@ -48,12 +49,7 @@ class TidalAPI {
                 throw new Error(errorMsg);
             }
 
-            try {
-                return JSON.parse(text);
-            } catch (e) {
-                console.error('[TidalAPI] JSON Parse Error:', text);
-                throw new Error('Invalid JSON response from server');
-            }
+            return JSON.parse(text);
         } catch (e) {
             console.error(`[TidalAPI] Fetch failed:`, e);
             throw e;
