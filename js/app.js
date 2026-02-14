@@ -10,7 +10,7 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v39'; // Clean URL version
+        const currentVersion = 'v40'; // Final Robustness attempt
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -20,8 +20,8 @@ class App {
         }
 
         this.api = new TidalAPI(
-            localStorage.getItem('tidal_client_id') || 'pUBRShyxR8fkaI0D', // Web ID
-            localStorage.getItem('tidal_proxy') || 'https://api.codetabs.com/v1/proxy?quest='
+            localStorage.getItem('tidal_client_id') || 'zU4XHVVkc2tDPo4t', // Android TV ID (Kimi Recommended)
+            localStorage.getItem('tidal_proxy') || 'https://api.allorigins.win/raw?url='
         );
 
         this.initUI();

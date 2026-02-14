@@ -15,15 +15,18 @@ class TidalAPI {
 
     async fetchWithProxy(url, options = {}, retryCount = 0) {
         const proxies = [
-            'https://api.codetabs.com/v1/proxy?quest=',
             'https://api.allorigins.win/raw?url=',
+            'https://cors-anywhere.azm.workers.dev/',
+            'https://thingproxy.freeboard.io/fetch/',
             'https://corsproxy.io/?'
         ];
         
         const currentProxy = retryCount === 0 && this.proxyUrl ? this.proxyUrl : proxies[retryCount % proxies.length];
         
-        // IMPORTANT: Ensure target URL is fully encoded and clean
-        const targetUrl = `${currentProxy}${encodeURIComponent(url)}`;
+        // Handle encoding based on proxy type
+        let targetUrl = (currentProxy.includes('allorigins') || currentProxy.includes('workers.dev'))
+            ? `${currentProxy}${encodeURIComponent(url)}`
+            : `${currentProxy}${url}`;
 
         console.log(`[TidalAPI] Attempt ${retryCount + 1}: ${targetUrl}`);
         
@@ -33,16 +36,27 @@ class TidalAPI {
                 body: options.body,
                 headers: {
                     'Accept': 'application/json',
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    ...options.headers
                 }
             };
+
+            // CRITICAL: Explicitly set Content-Type for all POST requests
+            if (fetchOptions.method === 'POST') {
+                fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+            }
 
             const response = await fetch(targetUrl, fetchOptions);
             const text = await response.text();
             
             if (!response.ok) {
                 console.warn(`[TidalAPI] Attempt ${retryCount + 1} failed (${response.status})`);
-                if (retryCount < proxies.length - 1 && response.status !== 401) {
+                
+                // If it's a 401, the Client ID is likely rejected by Tidal, don't just retry proxy
+                if (response.status === 401) {
+                    throw new Error(`Invalid Client ID (401). Please try a different Preset in Settings.`);
+                }
+
+                if (retryCount < proxies.length - 1) {
                     return this.fetchWithProxy(url, options, retryCount + 1);
                 }
                 throw new Error(`Proxy error: ${response.status} - ${text}`);
@@ -67,9 +81,12 @@ class TidalAPI {
     async getDeviceCode() {
         const params = new URLSearchParams();
         params.append('client_id', this.clientId);
-        params.append('scope', 'r_usr w_usr w_sub');
+        params.append('scope', 'r_usr w_usr');
 
-        return this.fetchWithProxy(`${this.authBase}/oauth2/device_authorization`, {
+        // Include client_id in URL as a fallback for body-stripping proxies
+        const authUrl = `${this.authBase}/oauth2/device_authorization?client_id=${this.clientId}`;
+
+        return this.fetchWithProxy(authUrl, {
             method: 'POST',
             body: params.toString()
         });
@@ -81,7 +98,7 @@ class TidalAPI {
         params.append('device_code', deviceCode);
         params.append('grant_type', 'urn:ietf:params:oauth:grant-type:device_code');
 
-        const tokenUrl = `${this.authBase}/oauth2/token`;
+        const tokenUrl = `${this.authBase}/oauth2/token?client_id=${this.clientId}`;
         const pollInterval = (interval || 5) * 1000;
 
         return new Promise((resolve, reject) => {
@@ -131,7 +148,9 @@ class TidalAPI {
         params.append('refresh_token', refreshToken);
         params.append('grant_type', 'refresh_token');
 
-        return this.fetchWithProxy(`${this.authBase}/oauth2/token`, {
+        const refreshUrl = `${this.authBase}/oauth2/token?client_id=${this.clientId}`;
+
+        return this.fetchWithProxy(refreshUrl, {
             method: 'POST',
             body: params.toString()
         });
@@ -175,7 +194,7 @@ class TidalAPI {
         const params = new URLSearchParams();
         params.append(type === 'tracks' ? 'trackId' : (type === 'artists' ? 'artistId' : 'albumId'), id);
 
-        const favUrl = `${this.apiBase}/users/${userId}/favorites/${endpointMap[type]}`;
+        const favUrl = `${this.apiBase}/users/${userId}/favorites/${endpointMap[type]}?client_id=${this.clientId}`;
 
         return this.fetchWithProxy(favUrl, {
             method: 'POST',
