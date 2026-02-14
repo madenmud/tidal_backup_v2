@@ -5,9 +5,9 @@ class TidalAPI {
     constructor(clientId) {
         this.clientId = clientId;
         this.authBase = 'https://auth.tidal.com/v1';
-        this.apiBase = 'https://api.tidal.com/v1';
+        this.apiBase = 'https://openapi.tidal.com/v2';
         this.proxyEndpoint = '/api/proxy?url=';
-        this.apiHeaders = { 'Accept': 'application/json' };
+        this.apiHeaders = { 'Accept': 'application/vnd.tidal.v1+json' };
     }
 
     async fetchProxy(url, options = {}) {
@@ -17,7 +17,7 @@ class TidalAPI {
         if (options.method === 'POST' && body) {
             if (typeof body === 'object' && !(body instanceof URLSearchParams)) {
                 body = JSON.stringify(body);
-                headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+                headers['Content-Type'] = headers['Content-Type'] || 'application/vnd.api+json';
             }
         }
 
@@ -91,58 +91,52 @@ class TidalAPI {
     }
 
     async getSessions(accessToken) {
-        return this.fetchProxy(`${this.apiBase}/sessions`, {
+        const data = await this.fetchProxy(`${this.apiBase}/users/me`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
+        const user = data.data || data;
+        return { userId: user.id, user_id: user.id };
     }
 
-    _favUrl(userId, type, offset, limit) {
-        const base = `${this.apiBase}/users/${userId}/favorites/${type}`;
-        return `${base}?countryCode=US&offset=${offset}&limit=${limit}`;
+    _collectionPath(type) {
+        const map = { tracks: 'userCollectionTracks', artists: 'userCollectionArtists', albums: 'userCollectionAlbums', playlists: 'userCollectionPlaylists' };
+        return map[type] || 'userCollectionTracks';
+    }
+
+    _parseItems(data) {
+        if (data.data && Array.isArray(data.data)) return data.data.map((r) => ({ id: r.id, type: r.type, ...(r.attributes || {}) }));
+        if (data.items) return data.items;
+        return [];
+    }
+
+    _nextCursor(data) {
+        return data.meta?.pageCursor || data.links?.next ? true : null;
     }
 
     async getFavorites(userId, accessToken, type) {
-        if (type === 'playlists') return this._getFavoritePlaylists(userId, accessToken);
+        const collection = this._collectionPath(type);
         let items = [];
-        let offset = 0;
-        const limit = 100;
-        while (true) {
-            const data = await this.fetchProxy(this._favUrl(userId, type, offset, limit), {
+        let cursor = null;
+        do {
+            let url = `${this.apiBase}/${collection}/${userId}/relationships/items?countryCode=US`;
+            if (cursor && typeof cursor === 'string') url += `&page[cursor]=${encodeURIComponent(cursor)}`;
+            const data = await this.fetchProxy(url, {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
-            items = items.concat(data.items || []);
-            if (!data.items || data.items.length < limit) break;
-            offset += limit;
-        }
-        return items;
-    }
-
-    async _getFavoritePlaylists(userId, accessToken) {
-        let items = [];
-        let offset = 0;
-        const limit = 50;
-        while (true) {
-            const data = await this.fetchProxy(this._favUrl(userId, 'playlists', offset, limit), {
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-            items = items.concat(data.items || []);
-            if (!data.items || data.items.length < limit) break;
-            offset += limit;
-        }
+            items = items.concat(this._parseItems(data));
+            cursor = data.meta?.pageCursor || null;
+        } while (cursor);
         return items;
     }
 
     async addFavorite(userId, accessToken, type, itemId) {
-        const paramMap = { tracks: 'trackId', artists: 'artistId', albums: 'albumId', playlists: 'playlistId' };
-        const endpoint = type === 'playlists' ? 'playlists' : type;
-        const paramName = paramMap[type] || 'trackId';
-        const params = new URLSearchParams();
-        params.append(paramName, String(itemId));
-
-        return this.fetchProxy(`${this.apiBase}/users/${userId}/favorites/${endpoint}?countryCode=US`, {
+        const collection = this._collectionPath(type);
+        const typeName = type === 'tracks' ? 'tracks' : type.slice(0, -1);
+        const payload = { data: [{ type: typeName, id: String(itemId) }] };
+        return this.fetchProxy(`${this.apiBase}/${collection}/${userId}/relationships/items?countryCode=US`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${accessToken}` },
-            body: params
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/vnd.api+json' },
+            body: JSON.stringify(payload)
         });
     }
 }
