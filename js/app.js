@@ -10,7 +10,7 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v22'; // Robust Encoding version
+        const currentVersion = 'v23'; // No custom headers version
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -20,7 +20,7 @@ class App {
         }
 
         this.api = new TidalAPI(
-            localStorage.getItem('tidal_client_id') || 'pUBRShyxR8fkaI0D', // Web ID as default
+            localStorage.getItem('tidal_client_id') || 'zU4XHVVkc2tDPo4t', // Kimi's TV ID
             localStorage.getItem('tidal_proxy') || 'https://api.allorigins.win/raw?url='
         );
 
