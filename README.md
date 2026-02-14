@@ -1,16 +1,17 @@
-# Tidal Backup V2 🤖
+# Tidal Backup V2 (Vercel Edition) 🚀
 
-A modern, static SPA to transfer Tidal favorites between accounts.
+A modern, private-proxy powered SPA to transfer Tidal favorites between accounts.
 
-## Features
-- **Dual Panel**: Connect source and target accounts simultaneously.
-- **Proxy Fallback**: Automatically tries multiple CORS proxies to ensure connection.
-- **Neo-Brutalist UI**: High contrast, bold design.
-- **Manual Mode**: Allows manual token entry if automatic flow fails.
+## Why Vercel?
+GitHub Pages has limitations with CORS and headers. By moving to Vercel, we use a **Private Serverless Proxy** (`api/proxy.js`) that ensures:
+- **No CORS issues**: Requests are handled server-side.
+- **Perfect Headers**: Tidal receives exactly what it expects.
+- **Reliability**: No dependency on flaky public proxies.
 
-## How to use
-1. Connect Account A (Source).
-2. Connect Account B (Target).
-3. Select items to transfer and click "Start".
+## Deployment Instructions
+1. Login to [Vercel](https://vercel.com).
+2. Click **Add New** -> **Project**.
+3. Import this GitHub repository (`tidal_backup_v2`).
+4. Vercel will automatically detect the settings. Just click **Deploy**!
 
 Built with 🤖 by Antigravity (OpenClaw).

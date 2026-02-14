@@ -1,5 +1,5 @@
 /**
- * Tidal Backup V2 - App Logic
+ * Tidal Backup V2 - App Logic (Vercel Edition)
  */
 class App {
     constructor() {
@@ -8,16 +8,16 @@ class App {
             target: null
         };
 
-        const currentVersion = 'v2.0.4';
+        const currentVersion = 'v2.1.0-vercel';
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
-            console.log('New version detected, resetting defaults.');
+            console.log('Vercel Migration: resetting defaults.');
             localStorage.clear();
             localStorage.setItem('tidal_v2_version', currentVersion);
         }
 
-        this.clientId = localStorage.getItem('tidal_v2_client_id') || 'H9iEbAVflp2n8j2L'; // Fire TV ID from user list
+        this.clientId = localStorage.getItem('tidal_v2_client_id') || 'zU4XHVVkc2tDPo4t'; // TV ID
         this.api = new TidalAPI(this.clientId);
 
         this.initUI();
@@ -25,24 +25,19 @@ class App {
     }
 
     initUI() {
-        // Auth Buttons
         document.getElementById('btn-source-login').onclick = () => this.login('source');
         document.getElementById('btn-target-login').onclick = () => this.login('target');
         document.getElementById('btn-source-logout').onclick = () => this.logout('source');
         document.getElementById('btn-target-logout').onclick = () => this.logout('target');
-
-        // Settings
         document.getElementById('btn-settings').onclick = () => this.toggleModal('settings-modal', true);
         document.getElementById('btn-settings-close').onclick = () => this.saveSettings();
-        
+        document.getElementById('btn-start-transfer').onclick = () => this.startTransfer();
+
         document.querySelectorAll('.preset-id').forEach(btn => {
             btn.onclick = () => {
                 document.getElementById('input-client-id').value = btn.dataset.id;
             };
         });
-
-        // Transfer
-        document.getElementById('btn-start-transfer').onclick = () => this.startTransfer();
     }
 
     toggleModal(id, show) {
@@ -55,10 +50,7 @@ class App {
         this.api.clientId = this.clientId;
 
         const manualToken = document.getElementById('input-manual-token').value;
-        if (manualToken) {
-            // If user provides a manual token, try to inject it as source
-            this.injectManualToken('source', manualToken);
-        }
+        if (manualToken) this.handleAuthSuccess('source', { access_token: manualToken });
 
         this.toggleModal('settings-modal', false);
     }
@@ -66,7 +58,6 @@ class App {
     async loadSessions() {
         const sSource = localStorage.getItem('tidal_v2_session_source');
         const sTarget = localStorage.getItem('tidal_v2_session_target');
-
         if (sSource) this.handleAuthSuccess('source', JSON.parse(sSource));
         if (sTarget) this.handleAuthSuccess('target', JSON.parse(sTarget));
     }
@@ -98,7 +89,6 @@ class App {
 
             const tokens = await this.api.pollForToken(deviceCode, deviceAuth.interval);
             clearInterval(countdown);
-            
             this.handleAuthSuccess(type, tokens);
         } catch (e) {
             alert(`Login Failed: ${e.message}`);
@@ -107,47 +97,26 @@ class App {
         }
     }
 
-    async injectManualToken(type, token) {
-        try {
-            const session = await this.api.getSessions(token);
-            const data = { access_token: token, user_id: session.userId };
-            this.handleAuthSuccess(type, data);
-        } catch (e) {
-            alert('Invalid manual token.');
-        }
-    }
-
     async handleAuthSuccess(type, tokens) {
         localStorage.setItem(`tidal_v2_session_${type}`, JSON.stringify(tokens));
-        
         try {
-            console.log(`[App] Handling auth success for ${type}`);
             const session = await this.api.getSessions(tokens.access_token);
-            this.accounts[type] = { 
-                tokens, 
-                userId: session.userId 
-            };
-
+            this.accounts[type] = { tokens, userId: session.userId };
             document.getElementById(`btn-${type}-login`).classList.add('hidden');
             document.getElementById(`${type}-device-flow`).classList.add('hidden');
             document.getElementById(`${type}-profile`).classList.remove('hidden');
             document.getElementById(`${type}-username`).textContent = `User: ${session.userId}`;
-
             await this.refreshStats(type);
             this.checkReadiness();
         } catch (e) {
-            console.error('[App] Auth success handler error:', e);
-            // Don't logout immediately if it's just a stat refresh error
-            if (e.message.includes('401')) {
-                this.logout(type);
-            }
+            console.error(e);
+            if (e.message.includes('401')) this.logout(type);
         }
     }
 
     async refreshStats(type) {
         const account = this.accounts[type];
         const types = ['tracks', 'artists', 'albums'];
-        
         for (const t of types) {
             const items = await this.api.getFavorites(account.userId, account.tokens.access_token, t);
             document.getElementById(`${type}-stat-${t}`).textContent = items.length;
@@ -180,8 +149,7 @@ class App {
 
         section.classList.remove('hidden');
         logs.innerHTML = '';
-        
-        const log = (msg) => {
+        const addLog = (msg) => {
             const div = document.createElement('div');
             div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
             logs.appendChild(div);
@@ -190,43 +158,29 @@ class App {
 
         let total = 0;
         types.forEach(t => total += (this.accounts.source[t] || []).length);
-        
-        if (total === 0) return log('Nothing to transfer.');
+        if (total === 0) return addLog('Nothing to transfer.');
 
         let done = 0;
-        log(`Transferring ${total} items...`);
-
+        addLog(`Transferring ${total} items...`);
         for (const type of types) {
-            log(`Starting ${type}...`);
             const items = this.accounts.source[type] || [];
-            
             for (const entry of items) {
-                // Determine ID based on Tidal API structure
                 const item = entry.item || entry.track || entry.artist || entry.album;
-                const itemId = item ? item.id : null;
-                const itemName = item ? (item.title || item.name) : 'Unknown';
-
-                if (!itemId) continue;
-
+                if (!item) continue;
                 try {
-                    await this.api.addFavorite(this.accounts.target.userId, this.accounts.target.tokens.access_token, type, itemId);
+                    await this.api.addFavorite(this.accounts.target.userId, this.accounts.target.tokens.access_token, type, item.id);
                     done++;
-                    const pct = (done / total) * 100;
-                    bar.style.width = `${pct}%`;
-                    status.textContent = `Moved: ${itemName} (${done}/${total})`;
+                    bar.style.width = `${(done / total) * 100}%`;
+                    status.textContent = `Moved: ${item.title || item.name} (${done}/${total})`;
                 } catch (e) {
-                    log(`Failed ${itemName}: ${e.message}`);
+                    addLog(`Failed: ${item.title || item.name}: ${e.message}`);
                 }
-                
-                // Rate limit protection
                 await new Promise(r => setTimeout(r, 200));
             }
         }
-
-        log('Done! 🎉 Refreshing target stats...');
+        addLog('Done! 🎉');
         status.textContent = 'Transfer Complete!';
         await this.refreshStats('target');
     }
 }
-
 window.onload = () => { window.app = new App(); };

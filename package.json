@@ -1,0 +1,11 @@
+{
+  "name": "tidal-backup-v2",
+  "version": "2.1.0",
+  "private": true,
+  "scripts": {
+    "start": "serve public"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
