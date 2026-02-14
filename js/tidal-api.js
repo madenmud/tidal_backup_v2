@@ -1,6 +1,6 @@
 /**
  * Tidal API Wrapper for SPA
- * Features: Proxy Fallback Chain, Content-Type injection, Android TV ID
+ * Features: Proxy Fallback Chain, Robust encoding, Manual Token Support
  */
 class TidalAPI {
     constructor(clientId) {
@@ -9,8 +9,8 @@ class TidalAPI {
         this.apiBase = 'https://api.tidal.com/v1';
         
         this.proxies = [
-            'https://corsproxy.io/?',
             'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?',
             'https://thingproxy.freeboard.io/fetch/',
             'https://api.codetabs.com/v1/proxy?quest='
         ];
@@ -22,10 +22,8 @@ class TidalAPI {
         }
 
         const currentProxy = this.proxies[retryCount];
-        const isEncodingNeeded = currentProxy.includes('allorigins') || currentProxy.includes('codetabs');
-        
-        // Strategy: Some proxies strip bodies, so we put params in URL as well for auth
-        let targetUrl = `${currentProxy}${isEncodingNeeded ? encodeURIComponent(url) : url}`;
+        // ALWAYS encode the target URL to avoid parameter stripping by proxies
+        const targetUrl = `${currentProxy}${encodeURIComponent(url)}`;
 
         console.log(`[TidalAPI] Attempt ${retryCount + 1}: ${targetUrl}`);
 
@@ -39,7 +37,6 @@ class TidalAPI {
             };
 
             if (options.method === 'POST') {
-                // Use a 'Simple' content type that most proxies allow without OPTIONS preflight
                 fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
             }
 
@@ -47,26 +44,24 @@ class TidalAPI {
             const text = await response.text();
 
             if (!response.ok) {
-                console.warn(`[TidalAPI] Proxy ${retryCount + 1} failed: ${response.status}`);
+                console.warn(`[TidalAPI] Proxy ${retryCount + 1} failed (${response.status}):`, text);
                 
-                // If 401, it's usually Client ID, but could be proxy stripping body
+                // If it's a 401, only throw if it's the last proxy, otherwise try another
                 if (response.status === 401 && retryCount === this.proxies.length - 1) {
                     throw new Error(`Unauthorized (401). Please try a different Client ID in Settings.`);
                 }
                 
-                // Retry with next proxy
                 return this.fetchWithFallback(url, options, retryCount + 1);
             }
 
             try {
                 return JSON.parse(text);
             } catch (e) {
-                // Handle success but non-JSON (like 204 No Content)
                 return { status: 'ok', raw: text };
             }
         } catch (e) {
             console.error(`[TidalAPI] Error via proxy ${retryCount + 1}:`, e);
-            // If it's a CORS error (failed to fetch), move to next proxy
+            if (e.message.includes('401') && retryCount === this.proxies.length - 1) throw e;
             return this.fetchWithFallback(url, options, retryCount + 1);
         }
     }
@@ -79,7 +74,7 @@ class TidalAPI {
             scope: 'r_usr w_usr'
         });
 
-        // Add client_id to URL as a backup for proxies that strip POST bodies
+        // Add client_id to URL for maximum compatibility
         const url = `${this.authBase}/oauth2/device_authorization?client_id=${this.clientId}`;
 
         return this.fetchWithFallback(url, {
@@ -118,7 +113,6 @@ class TidalAPI {
                     } else if (data && (data.error === 'authorization_pending' || data.status === 'authorization_pending')) {
                         setTimeout(poll, pollInterval);
                     } else {
-                        // AllOrigins might wrap the error in 200 OK
                         const err = data.error_description || data.error;
                         if (err === 'authorization_pending') {
                             setTimeout(poll, pollInterval);
@@ -169,7 +163,9 @@ class TidalAPI {
         const body = new URLSearchParams();
         body.append(type === 'tracks' ? 'trackId' : (type === 'artists' ? 'artistId' : 'albumId'), id);
 
-        return this.fetchWithFallback(`${this.apiBase}/users/${userId}/favorites/${endpointMap[type]}`, {
+        const url = `${this.apiBase}/users/${userId}/favorites/${endpointMap[type]}?client_id=${this.clientId}`;
+
+        return this.fetchWithFallback(url, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${accessToken}` },
             body: body.toString()

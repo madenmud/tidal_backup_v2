@@ -8,7 +8,7 @@ class App {
             target: null
         };
 
-        const currentVersion = 'v2.0.3';
+        const currentVersion = 'v2.0.4';
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -17,7 +17,7 @@ class App {
             localStorage.setItem('tidal_v2_version', currentVersion);
         }
 
-        this.clientId = localStorage.getItem('tidal_v2_client_id') || 'zU4XHVVkc2tDPo4t'; // Android TV ID (High success rate)
+        this.clientId = localStorage.getItem('tidal_v2_client_id') || 'H9iEbAVflp2n8j2L'; // Fire TV ID from user list
         this.api = new TidalAPI(this.clientId);
 
         this.initUI();
