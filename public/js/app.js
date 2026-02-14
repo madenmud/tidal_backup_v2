@@ -5,7 +5,7 @@ class App {
     constructor() {
         this.accounts = { source: null, target: null };
 
-        const currentVersion = 'v2.2.0';
+        const currentVersion = 'v2.2.1';
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -15,7 +15,7 @@ class App {
         }
 
         // Default to Web ID from user's provided list
-        this.clientId = localStorage.getItem('tidal_v2_client_id') || 'pUBRShyxR8fkaI0D'; 
+        this.clientId = localStorage.getItem('tidal_v2_client_id') || 'fX2JxdmntZWK0ixT'; 
         this.api = new TidalAPI(this.clientId);
 
         this.initUI();

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tidal Backup V2 🤖</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=JetBrains+Mono:wght@500;800&display=swap" rel="stylesheet">
@@ -11,7 +12,7 @@
 </head>
 <body class="theme-brutalist">
     <header class="header">
-        <h1 class="title">Tidal Backup V2 🤖 <span class="version">v2.2.0</span></h1>
+        <h1 class="title">Tidal Backup V2 🤖 <span class="version">v2.2.1</span></h1>
         <div class="header-actions">
             <button id="btn-settings" class="btn btn-icon">⚙️</button>
         </div>
@@ -114,13 +115,15 @@
             <h2>Settings ⚙️</h2>
             <div class="settings-group">
                 <label>Client ID Preset</label>
+                <p class="help-text">Tidal may revoke IDs. If login fails, try another preset.</p>
                 <div class="id-grid">
-                    <button class="btn btn-xs preset-id" data-id="pUBRShyxR8fkaI0D">Web (Default)</button>
+                    <button class="btn btn-xs preset-id" data-id="fX2JxdmntZWK0ixT">Current (2026)</button>
+                    <button class="btn btn-xs preset-id" data-id="pUBRShyxR8fkaI0D">Web (Legacy)</button>
                     <button class="btn btn-xs preset-id" data-id="c8jBkoXz1aY5Y0LG">Desktop</button>
                     <button class="btn btn-xs preset-id" data-id="VSVaDz8Ky1V7o1f6">Android</button>
                     <button class="btn btn-xs preset-id" data-id="H9iEbAVflp2n8j2L">FireTV</button>
                 </div>
-                <input type="text" id="input-client-id" class="input" value="pUBRShyxR8fkaI0D">
+                <input type="text" id="input-client-id" class="input" value="fX2JxdmntZWK0ixT">
             </div>
             <div class="settings-group">
                 <label>Manual Access Token (Emergency)</label>
