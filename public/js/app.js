@@ -105,7 +105,7 @@ class App {
             if (!userId) {
                 try {
                     const session = await this.api.getSessions(tokens.access_token);
-                    userId = session.userId || session.user_id;
+                    userId = session.data?.id || session.userId || session.user_id;
                 } catch (e) {
                     userId = this.api.parseUserIdFromToken(tokens.access_token);
                     if (!userId) throw e;

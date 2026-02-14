@@ -5,23 +5,29 @@ class TidalAPI {
     constructor(clientId) {
         this.clientId = clientId;
         this.authBase = 'https://auth.tidal.com/v1';
-        this.apiBase = 'https://api.tidalhifi.com/v1';
+        this.apiBase = 'https://openapi.tidal.com/v2';
         this.proxyEndpoint = '/api/proxy?url=';
-        this.apiHeaders = { 'Accept': 'application/json' };
+        this.apiHeaders = { 'Accept': 'application/vnd.api+json' };
     }
 
     async fetchProxy(url, options = {}) {
         const targetUrl = `${this.proxyEndpoint}${encodeURIComponent(url)}`;
         let body = options.body;
-        if (options.method === 'POST' && !(body instanceof URLSearchParams)) {
-            if (typeof body === 'object') body = JSON.stringify(body);
-        }
         const headers = { ...this.apiHeaders, ...options.headers };
+        if (options.method === 'POST' && body) {
+            if (typeof body === 'object' && !(body instanceof URLSearchParams)) {
+                body = JSON.stringify(body);
+                headers['Content-Type'] = headers['Content-Type'] || 'application/vnd.api+json';
+            }
+        }
 
         try {
             const response = await fetch(targetUrl, { method: options.method || 'GET', headers, body });
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error_description || data.error || `HTTP ${response.status}`);
+            if (!response.ok) {
+                const errMsg = data.errors?.[0]?.detail || data.error_description || data.error || `HTTP ${response.status}`;
+                throw new Error(errMsg);
+            }
             return data;
         } catch (error) {
             console.error(`[TidalAPI] Error:`, error);
@@ -85,55 +91,49 @@ class TidalAPI {
     }
 
     async getSessions(accessToken) {
-        return this.fetchProxy(`${this.apiBase}/sessions`, {
+        return this.fetchProxy(`${this.apiBase}/users/me`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
     }
 
+    _collectionPath(type) {
+        const map = { tracks: 'userCollectionTracks', artists: 'userCollectionArtists', albums: 'userCollectionAlbums', playlists: 'userCollectionPlaylists' };
+        return map[type] || 'userCollectionTracks';
+    }
+
+    _jsonApiItems(data) {
+        const list = data.data;
+        if (!Array.isArray(list)) return [];
+        return list.map((r) => ({ id: r.id, type: r.type, ...(r.attributes || {}) }));
+    }
+
     async getFavorites(userId, accessToken, type) {
-        if (type === 'playlists') {
-            return this._getFavoritePlaylists(userId, accessToken);
-        }
+        const collection = this._collectionPath(type);
         let items = [];
-        let offset = 0;
-        const limit = 100;
-        while (true) {
-            const data = await this.fetchProxy(`${this.apiBase}/users/${userId}/favorites/${type}?offset=${offset}&limit=${limit}`, {
+        let cursor = null;
+        do {
+            let url = `${this.apiBase}/${collection}/${userId}/relationships/items`;
+            if (cursor) url += `?page[cursor]=${encodeURIComponent(cursor)}`;
+            const data = await this.fetchProxy(url, {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
-            items = items.concat(data.items || []);
-            if (!data.items || data.items.length < limit) break;
-            offset += limit;
-        }
+            const batch = this._jsonApiItems(data);
+            items = items.concat(batch);
+            cursor = data.meta?.pageCursor || null;
+        } while (cursor);
         return items;
     }
 
-    async _getFavoritePlaylists(userId, accessToken) {
-        let items = [];
-        let offset = 0;
-        const limit = 50;
-        while (true) {
-            const data = await this.fetchProxy(`${this.apiBase}/users/${userId}/favorites/playlists?offset=${offset}&limit=${limit}`, {
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-            items = items.concat(data.items || []);
-            if (!data.items || data.items.length < limit) break;
-            offset += limit;
-        }
-        return items;
-    }
+    async addFavorite(userId, accessToken, type, itemId) {
+        const collection = this._collectionPath(type);
+        const payload = { data: [{ type: type === 'tracks' ? 'tracks' : type.slice(0, -1), id: String(itemId) }] };
+        const typeMap = { tracks: 'tracks', artists: 'artists', albums: 'albums', playlists: 'playlists' };
+        payload.data[0].type = typeMap[type] || type.slice(0, -1);
 
-    async addFavorite(userId, accessToken, type, id) {
-        const paramMap = { tracks: 'trackId', artists: 'artistId', albums: 'albumId', playlists: 'playlistId' };
-        const endpoint = type === 'playlists' ? 'playlists' : type;
-        const paramName = paramMap[type] || 'trackId';
-        const params = new URLSearchParams();
-        params.append(paramName, String(id));
-
-        return this.fetchProxy(`${this.apiBase}/users/${userId}/favorites/${endpoint}`, {
+        return this.fetchProxy(`${this.apiBase}/${collection}/${userId}/relationships/items`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${accessToken}` },
-            body: params
+            body: JSON.stringify(payload)
         });
     }
 }
