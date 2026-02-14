@@ -14,31 +14,42 @@ class TidalAPI {
     }
 
     async fetchWithProxy(url, options = {}) {
-        // Use a more robust proxy format
-        // If it's allorigins, it needs ?url=
-        // If it's corsproxy.io, it needs ?
         let targetUrl = url;
-        if (this.proxyUrl) {
-            if (this.proxyUrl.includes('allorigins')) {
-                targetUrl = `${this.proxyUrl}${encodeURIComponent(url)}`;
-            } else {
-                // Default to simple append for corsproxy.io style
-                targetUrl = `${this.proxyUrl}${url}`;
-            }
+        const proxy = this.proxyUrl || '';
+        
+        if (proxy.includes('allorigins')) {
+            targetUrl = `${proxy}${encodeURIComponent(url)}`;
+        } else {
+            targetUrl = `${proxy}${url}`;
         }
 
-        console.log('Fetching:', targetUrl);
-        const response = await fetch(targetUrl, options);
+        console.log(`[TidalAPI] ${options.method || 'GET'} ${targetUrl}`);
         
-        if (!response.ok) {
-            let errorMsg = `HTTP ${response.status}`;
-            try {
-                const error = await response.json();
-                errorMsg = error.userMessage || error.message || errorMsg;
-            } catch (e) {}
-            throw new Error(errorMsg);
+        try {
+            const response = await fetch(targetUrl, {
+                ...options,
+                headers: {
+                    ...options.headers,
+                    // Some proxies need these to be explicit
+                    'Accept': 'application/json',
+                }
+            });
+            
+            if (!response.ok) {
+                const text = await response.text();
+                console.error(`[TidalAPI] Error Body:`, text);
+                let errorMsg = `HTTP ${response.status}`;
+                try {
+                    const errorJson = JSON.parse(text);
+                    errorMsg = errorJson.userMessage || errorJson.error_description || errorJson.message || errorMsg;
+                } catch (e) {}
+                throw new Error(errorMsg);
+            }
+            return response.json();
+        } catch (e) {
+            console.error(`[TidalAPI] Fetch failed:`, e);
+            throw e;
         }
-        return response.json();
     }
 
     // --- Authentication (Device Flow) ---
