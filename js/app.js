@@ -10,7 +10,7 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v19'; // Version 19
+        const currentVersion = 'v20'; // Fallback logic version
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -20,8 +20,8 @@ class App {
         }
 
         this.api = new TidalAPI(
-            localStorage.getItem('tidal_client_id') || '8S9vSbe9v8V8v8V8', // Back to FireTV ID
-            localStorage.getItem('tidal_proxy') || 'https://corsproxy.io/?' // Back to CorsProxy
+            localStorage.getItem('tidal_client_id') || 'zU4XHVVkc2tDPo4t', // Android TV ID
+            localStorage.getItem('tidal_proxy') || 'https://thingproxy.freeboard.io/fetch/'
         );
 
         this.initUI();

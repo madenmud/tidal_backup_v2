@@ -13,21 +13,30 @@ class TidalAPI {
         this.proxyUrl = url;
     }
 
-    async fetchWithProxy(url, options = {}) {
-        let targetUrl = url;
-        const proxy = this.proxyUrl || '';
+    async fetchWithProxy(url, options = {}, retryCount = 0) {
+        const proxies = [
+            'https://thingproxy.freeboard.io/fetch/',
+            'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?'
+        ];
         
-        // IMPORTANT: Ensure target URL is encoded to prevent proxy stripping params
-        if (proxy) {
-            targetUrl = `${proxy}${encodeURIComponent(url)}`;
+        // Use provided proxy first, then fallback to list
+        const currentProxy = retryCount === 0 ? (this.proxyUrl || proxies[0]) : proxies[retryCount - 1];
+        
+        if (!currentProxy) return fetch(url, options).then(r => r.json());
+
+        let targetUrl = url;
+        if (currentProxy.includes('allorigins') || currentProxy.includes('codetabs')) {
+            targetUrl = `${currentProxy}${encodeURIComponent(url)}`;
+        } else {
+            targetUrl = `${currentProxy}${url}`;
         }
 
-        console.log(`[TidalAPI] Proxying ${options.method || 'GET'} to: ${targetUrl}`);
+        console.log(`[TidalAPI] Attempt ${retryCount + 1} with Proxy: ${targetUrl}`);
         
         try {
             const response = await fetch(targetUrl, {
                 ...options,
-                // Some proxies are sensitive to certain headers
                 headers: {
                     ...options.headers,
                     'Accept': 'application/json'
@@ -35,32 +44,25 @@ class TidalAPI {
             });
             
             const text = await response.text();
-            console.log(`[TidalAPI] Status: ${response.status}`);
             
             if (!response.ok) {
-                console.error(`[TidalAPI] Error Body:`, text);
-                let errorMsg = `HTTP ${response.status}`;
-                try {
-                    const errorJson = JSON.parse(text);
-                    // Special case for some proxies wrapping errors
-                    if (errorJson.contents) {
-                        const inner = JSON.parse(errorJson.contents);
-                        errorMsg = inner.error_description || inner.message || errorMsg;
-                    } else {
-                        errorMsg = errorJson.userMessage || errorJson.error_description || errorJson.message || errorMsg;
-                    }
-                } catch (e) {}
-                throw new Error(errorMsg);
+                console.warn(`[TidalAPI] Proxy failed (${response.status}):`, text);
+                if (retryCount < proxies.length) {
+                    return this.fetchWithProxy(url, options, retryCount + 1);
+                }
+                throw new Error(`All proxies failed. Final error: ${response.status}`);
             }
 
             try {
                 return JSON.parse(text);
             } catch (e) {
-                console.log('[TidalAPI] Parsing simple text response');
                 return { status: 'ok', raw: text };
             }
         } catch (e) {
-            console.error(`[TidalAPI] Fetch failed:`, e);
+            console.error(`[TidalAPI] Fetch error on attempt ${retryCount + 1}:`, e);
+            if (retryCount < proxies.length) {
+                return this.fetchWithProxy(url, options, retryCount + 1);
+            }
             throw e;
         }
     }
