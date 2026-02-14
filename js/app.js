@@ -10,7 +10,7 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v32'; // Web ID + Scope Fix version
+        const currentVersion = 'v33'; // CORS-Anywhere first version
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -20,8 +20,8 @@ class App {
         }
 
         this.api = new TidalAPI(
-            localStorage.getItem('tidal_client_id') || 'pUBRShyxR8fkaI0D', // User's Web ID
-            localStorage.getItem('tidal_proxy') || 'https://api.allorigins.win/raw?url='
+            localStorage.getItem('tidal_client_id') || 'pUBRShyxR8fkaI0D', // Web ID
+            localStorage.getItem('tidal_proxy') || 'https://cors-anywhere.azm.workers.dev/'
         );
 
         this.initUI();

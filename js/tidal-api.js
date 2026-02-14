@@ -15,18 +15,17 @@ class TidalAPI {
 
     async fetchWithProxy(url, options = {}, retryCount = 0) {
         const proxies = [
-            'https://api.allorigins.win/raw?url=',
             'https://cors-anywhere.azm.workers.dev/',
+            'https://api.allorigins.win/raw?url=',
             'https://corsproxy.io/?'
         ];
         
         const currentProxy = retryCount === 0 && this.proxyUrl ? this.proxyUrl : proxies[retryCount % proxies.length];
         
+        // Robust encoding: AllOrigins needs it, CORS-Anywhere usually doesn't for the path
         let targetUrl = url;
         if (currentProxy) {
-            targetUrl = (currentProxy.includes('allorigins') || currentProxy.includes('workers.dev')) 
-                ? `${currentProxy}${encodeURIComponent(url)}` 
-                : `${currentProxy}${url}`;
+            targetUrl = currentProxy.includes('allorigins') ? `${currentProxy}${encodeURIComponent(url)}` : `${currentProxy}${url}`;
         }
 
         console.log(`[TidalAPI] Attempt ${retryCount + 1}: ${targetUrl}`);
@@ -35,11 +34,10 @@ class TidalAPI {
             const fetchOptions = {
                 method: options.method || 'GET',
                 body: options.body,
-                headers: {
-                    'Accept': 'application/json'
-                }
+                headers: {}
             };
 
+            // CRITICAL: Content-Type is MANDATORY but must be 'simple'
             if (options.method === 'POST') {
                 fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
             }
@@ -49,7 +47,6 @@ class TidalAPI {
             
             if (!response.ok) {
                 console.warn(`[TidalAPI] Attempt ${retryCount + 1} failed (${response.status})`);
-                
                 if (retryCount < proxies.length - 1 && response.status !== 401) {
                     return this.fetchWithProxy(url, options, retryCount + 1);
                 }
