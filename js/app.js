@@ -10,7 +10,7 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v27'; // Fire TV + Robust Proxy version
+        const currentVersion = 'v28'; // Fire TV ID + URL-based Auth
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -21,7 +21,7 @@ class App {
 
         this.api = new TidalAPI(
             localStorage.getItem('tidal_client_id') || 'H9iEbAVflp2n8j2L', // Fire TV ID
-            localStorage.getItem('tidal_proxy') || 'https://api.allorigins.win/raw?url='
+            localStorage.getItem('tidal_proxy') || 'https://corsproxy.io/?'
         );
 
         this.initUI();
