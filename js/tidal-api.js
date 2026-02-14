@@ -17,20 +17,20 @@ class TidalAPI {
         let targetUrl = url;
         const proxy = this.proxyUrl || '';
         
-        // IMPORTANT: Always encode the target URL fully to avoid parameter confusion
+        // IMPORTANT: Ensure target URL is encoded to prevent proxy stripping params
         if (proxy) {
             targetUrl = `${proxy}${encodeURIComponent(url)}`;
         }
 
-        console.log(`[TidalAPI] Fetching: ${targetUrl}`);
+        console.log(`[TidalAPI] Proxying ${options.method || 'GET'} to: ${targetUrl}`);
         
         try {
             const response = await fetch(targetUrl, {
                 ...options,
+                // Some proxies are sensitive to certain headers
                 headers: {
                     ...options.headers,
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'Accept': 'application/json'
                 }
             });
             
@@ -42,12 +42,23 @@ class TidalAPI {
                 let errorMsg = `HTTP ${response.status}`;
                 try {
                     const errorJson = JSON.parse(text);
-                    errorMsg = errorJson.userMessage || errorJson.error_description || errorJson.message || errorMsg;
+                    // Special case for some proxies wrapping errors
+                    if (errorJson.contents) {
+                        const inner = JSON.parse(errorJson.contents);
+                        errorMsg = inner.error_description || inner.message || errorMsg;
+                    } else {
+                        errorMsg = errorJson.userMessage || errorJson.error_description || errorJson.message || errorMsg;
+                    }
                 } catch (e) {}
                 throw new Error(errorMsg);
             }
 
-            return JSON.parse(text);
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.log('[TidalAPI] Parsing simple text response');
+                return { status: 'ok', raw: text };
+            }
         } catch (e) {
             console.error(`[TidalAPI] Fetch failed:`, e);
             throw e;
