@@ -4,23 +4,25 @@
 class App {
     constructor() {
         this.accounts = { source: null, target: null };
+        I18n.init();
+        I18n.apply();
 
         const currentVersion = 'v2.2.1';
         const savedVersion = localStorage.getItem('tidal_v2_version');
-        
         if (savedVersion !== currentVersion) {
             console.log('Update detected: resetting defaults.');
             localStorage.clear();
             localStorage.setItem('tidal_v2_version', currentVersion);
         }
 
-        // Default to Web ID from user's provided list
-        this.clientId = localStorage.getItem('tidal_v2_client_id') || 'fX2JxdmntZWK0ixT'; 
+        this.clientId = localStorage.getItem('tidal_v2_client_id') || 'fX2JxdmntZWK0ixT';
         this.api = new TidalAPI(this.clientId);
 
         this.initUI();
         this.loadSessions();
     }
+
+    t(key, vars) { return I18n.t(key, vars || {}); }
 
     initUI() {
         document.getElementById('btn-source-login').onclick = () => this.login('source');
@@ -33,11 +35,19 @@ class App {
         document.getElementById('btn-download-json').onclick = () => this.downloadJson();
         document.getElementById('input-json-file').onchange = (e) => this.restoreFromJson(e);
 
+        document.getElementById('btn-lang-ko').onclick = () => { I18n.setLang('ko'); this.updateLangButtons(); };
+        document.getElementById('btn-lang-en').onclick = () => { I18n.setLang('en'); this.updateLangButtons(); };
+        document.getElementById('btn-help').onclick = () => document.getElementById('help-section').scrollIntoView({ behavior: 'smooth' });
+        this.updateLangButtons();
+
         document.querySelectorAll('.preset-id').forEach(btn => {
-            btn.onclick = () => {
-                document.getElementById('input-client-id').value = btn.dataset.id;
-            };
+            btn.onclick = () => { document.getElementById('input-client-id').value = btn.dataset.id; };
         });
+    }
+
+    updateLangButtons() {
+        document.getElementById('btn-lang-ko').classList.toggle('active', I18n.lang === 'ko');
+        document.getElementById('btn-lang-en').classList.toggle('active', I18n.lang === 'en');
     }
 
     toggleModal(id, show) { document.getElementById(id).classList.toggle('hidden', !show); }
@@ -92,7 +102,7 @@ class App {
             clearInterval(countdown);
             this.handleAuthSuccess(type, tokens);
         } catch (e) {
-            alert(`Login Failed: ${e.message}`);
+            alert(`${this.t('loginFailed')}: ${e.message}`);
             btn.classList.remove('hidden');
             flow.classList.add('hidden');
         }
@@ -181,10 +191,10 @@ class App {
 
         let total = 0;
         types.forEach(t => total += (this.accounts.source[t] || []).length);
-        if (total === 0) return addLog('Nothing to transfer.');
+        if (total === 0) return addLog(this.t('nothingToTransfer'));
 
         let done = 0;
-        addLog(`Transferring ${total} items...`);
+        addLog(this.t('transferringItems', { n: total }));
         for (const type of types) {
             const items = this.accounts.source[type] || [];
             for (const entry of items) {
@@ -194,15 +204,15 @@ class App {
                     await this.api.addFavorite(this.accounts.target.userId, this.accounts.target.tokens.access_token, type, extracted.id);
                     done++;
                     bar.style.width = `${(done / total) * 100}%`;
-                    status.textContent = `Moved: ${extracted.name} (${done}/${total})`;
+                    status.textContent = `${this.t('moved')} ${extracted.name} (${done}/${total})`;
                 } catch (e) {
-                    addLog(`Failed: ${extracted.name}: ${e.message}`);
+                    addLog(`${this.t('failed')} ${extracted.name}: ${e.message}`);
                 }
                 await new Promise(r => setTimeout(r, 200));
             }
         }
-        addLog('Done! 🎉');
-        status.textContent = 'Transfer Complete!';
+        addLog(this.t('done'));
+        status.textContent = this.t('transferComplete');
         await this.refreshStats('target');
     }
 
@@ -240,7 +250,7 @@ class App {
         if (!file) return;
         const target = this.accounts.target;
         if (!target) {
-            alert('Connect Target account first.');
+            alert(this.t('connectTargetFirst'));
             event.target.value = '';
             return;
         }
@@ -264,10 +274,10 @@ class App {
             const types = ['tracks', 'artists', 'albums', 'playlists'];
             let total = 0;
             types.forEach(t => { total += (data[t] || []).length; });
-            if (total === 0) { addLog('No items in file.'); event.target.value = ''; return; }
+            if (total === 0) { addLog(this.t('noItemsInFile')); event.target.value = ''; return; }
 
             let done = 0;
-            addLog(`Restoring ${total} items from JSON...`);
+            addLog(this.t('restoringFromJson', { n: total }));
             for (const type of types) {
                 const items = data[type] || [];
                 for (const entry of items) {
@@ -278,18 +288,18 @@ class App {
                         await this.api.addFavorite(target.userId, target.tokens.access_token, type, id);
                         done++;
                         bar.style.width = `${(done / total) * 100}%`;
-                        status.textContent = `Added: ${name} (${done}/${total})`;
+                        status.textContent = `${this.t('added')} ${name} (${done}/${total})`;
                     } catch (e) {
-                        addLog(`Failed: ${name}: ${e.message}`);
+                        addLog(`${this.t('failed')} ${name}: ${e.message}`);
                     }
                     await new Promise(r => setTimeout(r, 200));
                 }
             }
-            addLog('Restore complete! 🎉');
-            status.textContent = 'Restore Complete!';
+            addLog(this.t('done'));
+            status.textContent = this.t('restoreComplete');
             await this.refreshStats('target');
         } catch (e) {
-            alert(`Invalid JSON: ${e.message}`);
+            alert(`${this.t('invalidJson')}: ${e.message}`);
         }
         event.target.value = '';
     }

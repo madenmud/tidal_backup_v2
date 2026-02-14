@@ -59,6 +59,13 @@ body {
 }
 
 .version { font-size: 0.8rem; font-style: normal; opacity: 0.7; }
+.header-actions { display: flex; align-items: center; gap: 0.5rem; }
+.lang-toggle { display: flex; gap: 0.25rem; }
+.lang-toggle .btn-xs { opacity: 0.7; }
+.lang-toggle .btn-xs.active { opacity: 1; background: var(--accent-secondary); color: #000; }
+.help-section { margin-bottom: 2rem; padding: 1.5rem; background: var(--surface); border: var(--bw) solid var(--border); box-shadow: var(--shadow); }
+.help-content { font-size: 0.95rem; line-height: 1.7; color: var(--text-muted); }
+.help-content strong { color: var(--text); }
 
 /* Main */
 .main {

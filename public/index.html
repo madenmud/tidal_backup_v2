@@ -14,34 +14,45 @@
     <header class="header">
         <h1 class="title">Tidal Backup V2 🤖 <span class="version">v2.2.1</span></h1>
         <div class="header-actions">
+            <div class="lang-toggle">
+                <button id="btn-lang-ko" class="btn btn-xs">한글</button>
+                <button id="btn-lang-en" class="btn btn-xs">English</button>
+            </div>
+            <button id="btn-help" class="btn btn-icon" data-i18n="help">도움말</button>
             <button id="btn-settings" class="btn btn-icon">⚙️</button>
         </div>
     </header>
 
     <main class="main">
+        <!-- Usage / Help Section -->
+        <section id="help-section" class="help-section">
+            <h2 class="section-title" data-i18n="usageTitle">사용법</h2>
+            <div class="help-content" data-i18n="usageSteps" data-i18n-html>로딩...</div>
+        </section>
+
         <div class="dual-panel">
             <!-- Source Panel -->
             <section class="panel source-panel">
-                <h2 class="section-title">Step 1: Source (Backup)</h2>
+                <h2 class="section-title" data-i18n="step1Title">Step 1: Source (Backup)</h2>
                 <div id="source-auth" class="auth-container">
-                    <p class="desc">Connect the account you want to copy FROM.</p>
-                    <button id="btn-source-login" class="btn btn-primary">Connect Account A</button>
+                    <p class="desc" data-i18n="sourceDesc">Connect the account you want to copy FROM.</p>
+                    <button id="btn-source-login" class="btn btn-primary" data-i18n="connectAccountA">Connect Account A</button>
                     <div id="source-device-flow" class="device-flow hidden">
                         <div class="user-code" id="source-user-code">---- ----</div>
-                        <p class="timer">Waiting... <span id="source-timer">300</span>s</p>
-                        <button id="btn-source-popup" class="btn btn-sm">Open Tidal Login</button>
+                        <p class="timer"><span data-i18n="waiting">Waiting...</span> <span id="source-timer">300</span>s</p>
+                        <button id="btn-source-popup" class="btn btn-sm" data-i18n="openTidalLogin">Open Tidal Login</button>
                     </div>
                 </div>
                 <div id="source-profile" class="profile-container hidden">
                     <div class="profile-header">
                         <span class="username" id="source-username">Connected</span>
-                        <button id="btn-source-logout" class="btn btn-sm">Disconnect</button>
+                        <button id="btn-source-logout" class="btn btn-sm" data-i18n="disconnect">Disconnect</button>
                     </div>
                     <ul class="stats-list">
-                        <li>Tracks: <span id="source-stat-tracks">...</span></li>
-                        <li>Artists: <span id="source-stat-artists">...</span></li>
-                        <li>Albums: <span id="source-stat-albums">...</span></li>
-                        <li>Playlists: <span id="source-stat-playlists">...</span></li>
+                        <li><span data-i18n="tracks">Tracks</span>: <span id="source-stat-tracks">...</span></li>
+                        <li><span data-i18n="artists">Artists</span>: <span id="source-stat-artists">...</span></li>
+                        <li><span data-i18n="albums">Albums</span>: <span id="source-stat-albums">...</span></li>
+                        <li><span data-i18n="playlists">Playlists</span>: <span id="source-stat-playlists">...</span></li>
                     </ul>
                 </div>
             </section>
@@ -49,46 +60,46 @@
             <!-- Transfer Controls -->
             <section class="controls-panel">
                 <div class="control-box">
-                    <h3 class="box-title">Transfer Between Accounts</h3>
+                    <h3 class="box-title" data-i18n="transferTitle">Transfer Between Accounts</h3>
                     <div class="checkbox-group">
-                        <label class="checkbox-label"><input type="checkbox" id="check-tracks" checked> 🎵 Tracks</label>
-                        <label class="checkbox-label"><input type="checkbox" id="check-artists" checked> 🎤 Artists</label>
-                        <label class="checkbox-label"><input type="checkbox" id="check-albums" checked> 📀 Albums</label>
-                        <label class="checkbox-label"><input type="checkbox" id="check-playlists" checked> 📋 Playlists</label>
+                        <label class="checkbox-label"><input type="checkbox" id="check-tracks" checked> 🎵 <span data-i18n="tracks">Tracks</span></label>
+                        <label class="checkbox-label"><input type="checkbox" id="check-artists" checked> 🎤 <span data-i18n="artists">Artists</span></label>
+                        <label class="checkbox-label"><input type="checkbox" id="check-albums" checked> 📀 <span data-i18n="albums">Albums</span></label>
+                        <label class="checkbox-label"><input type="checkbox" id="check-playlists" checked> 📋 <span data-i18n="playlists">Playlists</span></label>
                     </div>
-                    <button id="btn-start-transfer" class="btn btn-primary btn-large" disabled>Start Transfer ▶</button>
+                    <button id="btn-start-transfer" class="btn btn-primary btn-large" disabled data-i18n="startTransfer">Start Transfer ▶</button>
                     <hr class="divider">
-                    <h3 class="box-title">Backup / Restore (JSON)</h3>
-                    <p class="desc-small">Download favorites as JSON or restore from file.</p>
+                    <h3 class="box-title" data-i18n="backupRestoreTitle">Backup / Restore (JSON)</h3>
+                    <p class="desc-small" data-i18n="backupRestoreDesc">Download favorites as JSON or restore from file.</p>
                     <div class="button-row">
-                        <button id="btn-download-json" class="btn btn-sm" disabled>Download JSON</button>
-                        <label class="btn btn-sm btn-file"><input type="file" id="input-json-file" accept=".json" hidden> Restore from JSON</label>
+                        <button id="btn-download-json" class="btn btn-sm" disabled data-i18n="downloadJson">Download JSON</button>
+                        <label class="btn btn-sm btn-file"><input type="file" id="input-json-file" accept=".json" hidden> <span data-i18n="restoreFromJson">Restore from JSON</span></label>
                     </div>
                 </div>
             </section>
 
             <!-- Target Panel -->
             <section class="panel target-panel">
-                <h2 class="section-title">Step 2: Target (Restore)</h2>
+                <h2 class="section-title" data-i18n="step2Title">Step 2: Target (Restore)</h2>
                 <div id="target-auth" class="auth-container">
-                    <p class="desc">Connect the account you want to copy TO.</p>
-                    <button id="btn-target-login" class="btn btn-primary">Connect Account B</button>
+                    <p class="desc" data-i18n="targetDesc">Connect the account you want to copy TO.</p>
+                    <button id="btn-target-login" class="btn btn-primary" data-i18n="connectAccountB">Connect Account B</button>
                     <div id="target-device-flow" class="device-flow hidden">
                         <div class="user-code" id="target-user-code">---- ----</div>
-                        <p class="timer">Waiting... <span id="target-timer">300</span>s</p>
-                        <button id="btn-target-popup" class="btn btn-sm">Open Tidal Login</button>
+                        <p class="timer"><span data-i18n="waiting">Waiting...</span> <span id="target-timer">300</span>s</p>
+                        <button id="btn-target-popup" class="btn btn-sm" data-i18n="openTidalLogin">Open Tidal Login</button>
                     </div>
                 </div>
                 <div id="target-profile" class="profile-container hidden">
                     <div class="profile-header">
                         <span class="username" id="target-username">Connected</span>
-                        <button id="btn-target-logout" class="btn btn-sm">Disconnect</button>
+                        <button id="btn-target-logout" class="btn btn-sm" data-i18n="disconnect">Disconnect</button>
                     </div>
                     <ul class="stats-list">
-                        <li>Tracks: <span id="target-stat-tracks">...</span></li>
-                        <li>Artists: <span id="target-stat-artists">...</span></li>
-                        <li>Albums: <span id="target-stat-albums">...</span></li>
-                        <li>Playlists: <span id="target-stat-playlists">...</span></li>
+                        <li><span data-i18n="tracks">Tracks</span>: <span id="target-stat-tracks">...</span></li>
+                        <li><span data-i18n="artists">Artists</span>: <span id="target-stat-artists">...</span></li>
+                        <li><span data-i18n="albums">Albums</span>: <span id="target-stat-albums">...</span></li>
+                        <li><span data-i18n="playlists">Playlists</span>: <span id="target-stat-playlists">...</span></li>
                     </ul>
                 </div>
             </section>
@@ -96,26 +107,26 @@
 
         <!-- Progress Section -->
         <section id="progress-section" class="section progress-section hidden">
-            <h2 class="section-title">Transfer Status</h2>
+            <h2 class="section-title" data-i18n="transferStatus">Transfer Status</h2>
             <div class="progress-bar-container">
                 <div id="progress-bar" class="progress-bar"></div>
             </div>
-            <div id="progress-status" class="progress-status">Initializing...</div>
+            <div id="progress-status" class="progress-status" data-i18n="initializing">Initializing...</div>
             <div id="log-container" class="log-container"></div>
         </section>
     </main>
 
     <footer class="footer">
-        <p>No API Key Needed · 100% Client-side · Based on python-tidal</p>
+        <p data-i18n="footer">No API Key Needed · 100% Client-side · Based on python-tidal</p>
     </footer>
 
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal hidden">
         <div class="modal-content">
-            <h2>Settings ⚙️</h2>
+            <h2 data-i18n="settings">Settings ⚙️</h2>
             <div class="settings-group">
-                <label>Client ID Preset</label>
-                <p class="help-text">Tidal may revoke IDs. If login succeeds but favorites show 403, register at <a href="https://developer.tidal.com/dashboard" target="_blank" rel="noopener">developer.tidal.com</a> and use your Client ID.</p>
+                <label data-i18n="clientIdPreset">Client ID Preset</label>
+                <p class="help-text" data-i18n="clientIdHelp" data-i18n-html>Tidal may revoke IDs...</p>
                 <div class="id-grid">
                     <button class="btn btn-xs preset-id" data-id="fX2JxdmntZWK0ixT">Current (2026)</button>
                     <button class="btn btn-xs preset-id" data-id="pUBRShyxR8fkaI0D">Web (Legacy)</button>
@@ -126,16 +137,17 @@
                 <input type="text" id="input-client-id" class="input" value="fX2JxdmntZWK0ixT">
             </div>
             <div class="settings-group">
-                <label>Manual Access Token (Emergency)</label>
-                <input type="text" id="input-manual-token" class="input" placeholder="Paste access_token here">
-                <p class="help-text">Only use if automatic login fails repeatedly.</p>
+                <label data-i18n="manualToken">Manual Access Token (Emergency)</label>
+                <input type="text" id="input-manual-token" class="input" data-i18n-placeholder="manualTokenPlaceholder">
+                <p class="help-text" data-i18n="manualTokenHelp">Only use if automatic login fails repeatedly.</p>
             </div>
             <div class="modal-close-btn">
-                <button id="btn-settings-close" class="btn btn-primary" style="width:100%">Save & Close</button>
+                <button id="btn-settings-close" class="btn btn-primary" style="width:100%" data-i18n="saveClose">Save & Close</button>
             </div>
         </div>
     </div>
 
+    <script src="js/i18n.js"></script>
     <script src="js/tidal-api.js"></script>
     <script src="js/app.js"></script>
 </body>
