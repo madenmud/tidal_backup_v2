@@ -17,9 +17,10 @@ class TidalAPI {
         let targetUrl = url;
         const proxy = this.proxyUrl || '';
         
-        // IMPORTANT: Always encode the target URL to avoid double '?' confusion
-        if (proxy) {
+        if (proxy.includes('allorigins')) {
             targetUrl = `${proxy}${encodeURIComponent(url)}`;
+        } else {
+            targetUrl = `${proxy}${url}`;
         }
 
         console.log(`[TidalAPI] Fetching: ${targetUrl}`);
@@ -30,7 +31,8 @@ class TidalAPI {
                 headers: {
                     ...options.headers,
                     'Accept': 'application/json',
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest' // Required by some proxies
                 }
             });
             
@@ -59,12 +61,9 @@ class TidalAPI {
     async getDeviceCode() {
         const params = new URLSearchParams();
         params.append('client_id', this.clientId);
-        params.append('scope', 'r_usr w_usr w_sub'); // Full scope
+        params.append('scope', 'r_usr w_usr w_sub');
 
-        // Put client_id in BOTH URL and Body for maximum compatibility
-        const url = `${this.authBase}/oauth2/device_authorization?client_id=${this.clientId}`;
-
-        return this.fetchWithProxy(url, {
+        return this.fetchWithProxy(`${this.authBase}/oauth2/device_authorization`, {
             method: 'POST',
             body: params.toString()
         });
