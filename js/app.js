@@ -10,7 +10,7 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v8'; // Bump version
+        const currentVersion = 'v9'; // Bump version
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -21,7 +21,7 @@ class App {
 
         this.api = new TidalAPI(
             localStorage.getItem('tidal_client_id') || 'zU4XSTBY6v3sq4Ax',
-            localStorage.getItem('tidal_proxy') || 'https://corsproxy.io/?'
+            localStorage.getItem('tidal_proxy') || 'https://api.allorigins.win/raw?url='
         );
 
         this.initUI();
