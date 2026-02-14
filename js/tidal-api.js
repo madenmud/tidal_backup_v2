@@ -60,7 +60,7 @@ class TidalAPI {
     async getDeviceCode() {
         const params = new URLSearchParams();
         params.append('client_id', this.clientId);
-        params.append('scope', 'r_usr w_usr w_sub'); // Try standard space separation
+        params.append('scope', 'r_usr w_usr'); // Simplified scope
 
         return this.fetchWithProxy(`${this.authBase}/oauth2/device_authorization`, {
             method: 'POST',
