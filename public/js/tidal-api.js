@@ -98,9 +98,9 @@ class TidalAPI {
         return { userId: user.id, user_id: user.id };
     }
 
-    _collectionPath(type) {
-        const map = { tracks: 'userCollectionTracks', artists: 'userCollectionArtists', albums: 'userCollectionAlbums', playlists: 'userCollectionPlaylists' };
-        return map[type] || 'userCollectionTracks';
+    _relPath(type) {
+        const map = { tracks: 'tracks', artists: 'artists', albums: 'albums', playlists: 'playlists' };
+        return map[type] || 'tracks';
     }
 
     _parseItems(data) {
@@ -109,17 +109,13 @@ class TidalAPI {
         return [];
     }
 
-    _nextCursor(data) {
-        return data.meta?.pageCursor || data.links?.next ? true : null;
-    }
-
     async getFavorites(userId, accessToken, type) {
-        const collection = this._collectionPath(type);
+        const rel = this._relPath(type);
         let items = [];
         let cursor = null;
         do {
-            let url = `${this.apiBase}/${collection}/${userId}/relationships/items?countryCode=US`;
-            if (cursor && typeof cursor === 'string') url += `&page[cursor]=${encodeURIComponent(cursor)}`;
+            let url = `${this.apiBase}/userCollections/${userId}/relationships/${rel}?countryCode=US`;
+            if (cursor) url += `&page[cursor]=${encodeURIComponent(cursor)}`;
             const data = await this.fetchProxy(url, {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
@@ -130,10 +126,10 @@ class TidalAPI {
     }
 
     async addFavorite(userId, accessToken, type, itemId) {
-        const collection = this._collectionPath(type);
+        const rel = this._relPath(type);
         const typeName = type === 'tracks' ? 'tracks' : type.slice(0, -1);
         const payload = { data: [{ type: typeName, id: String(itemId) }] };
-        return this.fetchProxy(`${this.apiBase}/${collection}/${userId}/relationships/items?countryCode=US`, {
+        return this.fetchProxy(`${this.apiBase}/userCollections/${userId}/relationships/${rel}?countryCode=US`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/vnd.api+json' },
             body: JSON.stringify(payload)
