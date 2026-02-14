@@ -7,7 +7,10 @@ class App {
         I18n.init();
         I18n.apply();
 
-        const currentVersion = 'v2.2.1';
+        const currentVersion = (window.__BUILD__?.version) || 'v2.2.1';
+        const buildTime = window.__BUILD__?.buildTime || '';
+        const versionSpan = document.getElementById('build-version');
+        if (versionSpan) versionSpan.textContent = buildTime ? `${currentVersion} · ${buildTime}` : currentVersion;
         const savedVersion = localStorage.getItem('tidal_v2_version');
         if (savedVersion !== currentVersion) {
             console.log('Update detected: resetting defaults.');
@@ -143,7 +146,12 @@ class App {
                 const el = document.getElementById(`${type}-stat-${t}`);
                 if (el) el.textContent = items.length;
                 account[t] = items;
-            } catch (e) { console.error(`Stat error (${t}):`, e); }
+            } catch (e) {
+                console.error(`Stat error (${t}):`, e);
+                const el = document.getElementById(`${type}-stat-${t}`);
+                if (el) el.textContent = '—';
+                account[t] = [];
+            }
         }
     }
 

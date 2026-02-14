@@ -64,8 +64,11 @@ body {
 .lang-toggle .btn-xs { opacity: 0.7; }
 .lang-toggle .btn-xs.active { opacity: 1; background: var(--accent-secondary); color: #000; }
 .help-section { margin-bottom: 2rem; padding: 1.5rem; background: var(--surface); border: var(--bw) solid var(--border); box-shadow: var(--shadow); }
-.help-content { font-size: 0.95rem; line-height: 1.7; color: var(--text-muted); }
+.help-content { font-size: 0.95rem; line-height: 1.7; color: var(--text-muted); word-wrap: break-word; overflow-wrap: break-word; }
 .help-content strong { color: var(--text); }
+.help-content .usage-steps { margin: 0; padding-left: 1.5rem; }
+.help-content .usage-steps li { margin-bottom: 0.6rem; }
+.help-content .usage-steps li:last-child { margin-bottom: 0; }
 
 /* Main */
 .main {
@@ -84,6 +87,11 @@ body {
 
 @media (max-width: 900px) {
     .dual-panel { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+    .help-section { padding: 1rem; }
+    .help-content .usage-steps { padding-left: 1.25rem; }
 }
 
 .panel {

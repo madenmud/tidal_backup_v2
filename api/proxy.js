@@ -12,8 +12,11 @@ export default async function handler(req, res) {
     if (!url) return res.status(400).json({ error: 'Missing url' });
 
     try {
+        let decodedUrl = url;
+        try { decodedUrl = decodeURIComponent(url); } catch (_) { /* already decoded */ }
+        const isAuth = decodedUrl.includes('auth.tidal.com');
         const headers = {
-            'Accept': req.headers.accept || 'application/json',
+            'Accept': isAuth ? '*/*' : (req.headers.accept || 'application/json'),
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         };
         if (req.headers.authorization) headers['Authorization'] = req.headers.authorization;
@@ -31,7 +34,7 @@ export default async function handler(req, res) {
             }
         }
 
-        const response = await fetch(url, { method: req.method, headers, body: fetchBody });
+        const response = await fetch(decodedUrl, { method: req.method, headers, body: fetchBody });
         const ct = response.headers.get('content-type') || '';
         let data;
         if (ct.includes('application/json')) {

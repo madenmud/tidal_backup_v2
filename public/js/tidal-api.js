@@ -13,7 +13,9 @@ class TidalAPI {
     async fetchProxy(url, options = {}) {
         const targetUrl = `${this.proxyEndpoint}${encodeURIComponent(url)}`;
         let body = options.body;
-        const headers = { ...this.apiHeaders, ...options.headers };
+        const isAuth = url.startsWith(this.authBase);
+        const baseHeaders = isAuth ? { 'Accept': 'application/json' } : this.apiHeaders;
+        const headers = { ...baseHeaders, ...options.headers };
         if (options.method === 'POST' && body) {
             if (typeof body === 'object' && !(body instanceof URLSearchParams)) {
                 body = JSON.stringify(body);
@@ -98,7 +100,12 @@ class TidalAPI {
         return { userId: user.id, user_id: user.id };
     }
 
-    _relPath(type) {
+    _collectionType(type) {
+        const map = { tracks: 'userCollectionTracks', artists: 'userCollectionArtists', albums: 'userCollectionAlbums', playlists: 'userCollectionPlaylists' };
+        return map[type] || 'userCollectionTracks';
+    }
+
+    _itemType(type) {
         const map = { tracks: 'tracks', artists: 'artists', albums: 'albums', playlists: 'playlists' };
         return map[type] || 'tracks';
     }
@@ -110,28 +117,42 @@ class TidalAPI {
     }
 
     async getFavorites(userId, accessToken, type) {
-        const rel = this._relPath(type);
-        let items = [];
-        let cursor = null;
-        do {
-            let url = `${this.apiBase}/userCollections/${userId}/relationships/${rel}?countryCode=US`;
-            if (cursor) url += `&page[cursor]=${encodeURIComponent(cursor)}`;
-            const data = await this.fetchProxy(url, {
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-            items = items.concat(this._parseItems(data));
-            cursor = data.meta?.pageCursor || null;
-        } while (cursor);
-        return items;
+        const rel = this._itemType(type);
+        const urlsToTry = [
+            () => {
+                const collectionType = this._collectionType(type);
+                return `${this.apiBase}/${collectionType}/${userId}/relationships/items?countryCode=US`;
+            },
+            () => `${this.apiBase}/userCollections/${userId}/relationships/${rel}?countryCode=US`
+        ];
+        for (const urlFn of urlsToTry) {
+            let items = [];
+            let cursor = null;
+            try {
+                do {
+                    let url = urlFn();
+                    if (cursor) url += `&page[cursor]=${encodeURIComponent(cursor)}`;
+                    const data = await this.fetchProxy(url, {
+                        headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/vnd.api+json' }
+                    });
+                    items = items.concat(this._parseItems(data));
+                    cursor = data.meta?.pageCursor || null;
+                } while (cursor);
+                return items;
+            } catch (e) {
+                if (e.message && e.message.includes('404') && urlsToTry.indexOf(urlFn) < urlsToTry.length - 1) continue;
+                throw e;
+            }
+        }
     }
 
     async addFavorite(userId, accessToken, type, itemId) {
-        const rel = this._relPath(type);
-        const typeName = type === 'tracks' ? 'tracks' : type.slice(0, -1);
-        const payload = { data: [{ type: typeName, id: String(itemId) }] };
-        return this.fetchProxy(`${this.apiBase}/userCollections/${userId}/relationships/${rel}?countryCode=US`, {
+        const collectionType = this._collectionType(type);
+        const itemType = this._itemType(type);
+        const payload = { data: [{ type: itemType, id: String(itemId) }] };
+        return this.fetchProxy(`${this.apiBase}/${collectionType}/${userId}/relationships/items?countryCode=US`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/vnd.api+json' },
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/vnd.api+json', 'Accept': 'application/vnd.api+json' },
             body: JSON.stringify(payload)
         });
     }

@@ -12,13 +12,13 @@
 </head>
 <body class="theme-brutalist">
     <header class="header">
-        <h1 class="title">Tidal Backup V2 🤖 <span class="version">v2.2.1</span></h1>
+        <h1 class="title">Tidal Backup V2 🤖 <span class="version" id="build-version">-</span></h1>
         <div class="header-actions">
             <div class="lang-toggle">
                 <button id="btn-lang-ko" class="btn btn-xs">한글</button>
                 <button id="btn-lang-en" class="btn btn-xs">English</button>
             </div>
-            <button id="btn-help" class="btn btn-icon" data-i18n="help">도움말</button>
+            <button id="btn-help" class="btn btn-icon" data-i18n="help">?</button>
             <button id="btn-settings" class="btn btn-icon">⚙️</button>
         </div>
     </header>
@@ -27,7 +27,7 @@
         <!-- Usage / Help Section -->
         <section id="help-section" class="help-section">
             <h2 class="section-title" data-i18n="usageTitle">사용법</h2>
-            <div class="help-content" data-i18n="usageSteps" data-i18n-html>로딩...</div>
+            <div class="help-content" data-i18n="usageSteps" data-i18n-html><ol class="usage-steps"><li>로딩...</li></ol></div>
         </section>
 
         <div class="dual-panel">
@@ -147,8 +147,9 @@
         </div>
     </div>
 
-    <script src="js/i18n.js"></script>
-    <script src="js/tidal-api.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/version.js?v=__CACHE_KEY__"></script>
+    <script src="js/i18n.js?v=__CACHE_KEY__"></script>
+    <script src="js/tidal-api.js?v=__CACHE_KEY__"></script>
+    <script src="js/app.js?v=__CACHE_KEY__"></script>
 </body>
 </html>
