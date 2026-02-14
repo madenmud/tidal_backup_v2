@@ -87,6 +87,9 @@ class TidalAPI {
     }
 
     async getFavorites(userId, accessToken, type) {
+        if (type === 'playlists') {
+            return this._getFavoritePlaylists(userId, accessToken);
+        }
         let items = [];
         let offset = 0;
         const limit = 100;
@@ -101,12 +104,29 @@ class TidalAPI {
         return items;
     }
 
-    async addFavorite(userId, accessToken, type, id) {
-        const endpointMap = { 'tracks': 'tracks', 'artists': 'artists', 'albums': 'albums' };
-        const params = new URLSearchParams();
-        params.append(type === 'tracks' ? 'trackId' : (type === 'artists' ? 'artistId' : 'albumId'), id);
+    async _getFavoritePlaylists(userId, accessToken) {
+        let items = [];
+        let offset = 0;
+        const limit = 50;
+        while (true) {
+            const data = await this.fetchProxy(`${this.apiBase}/users/${userId}/favorites/playlists?offset=${offset}&limit=${limit}`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            items = items.concat(data.items || []);
+            if (!data.items || data.items.length < limit) break;
+            offset += limit;
+        }
+        return items;
+    }
 
-        return this.fetchProxy(`${this.apiBase}/users/${userId}/favorites/${endpointMap[type]}`, {
+    async addFavorite(userId, accessToken, type, id) {
+        const paramMap = { tracks: 'trackId', artists: 'artistId', albums: 'albumId', playlists: 'playlistId' };
+        const endpoint = type === 'playlists' ? 'playlists' : type;
+        const paramName = paramMap[type] || 'trackId';
+        const params = new URLSearchParams();
+        params.append(paramName, String(id));
+
+        return this.fetchProxy(`${this.apiBase}/users/${userId}/favorites/${endpoint}`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${accessToken}` },
             body: params

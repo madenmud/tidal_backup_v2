@@ -11,7 +11,7 @@
 </head>
 <body class="theme-brutalist">
     <header class="header">
-        <h1 class="title">Tidal Backup V2 🤖 <span class="version">v2.1.2-vercel</span></h1>
+        <h1 class="title">Tidal Backup V2 🤖 <span class="version">v2.2.0</span></h1>
         <div class="header-actions">
             <button id="btn-settings" class="btn btn-icon">⚙️</button>
         </div>
@@ -40,6 +40,7 @@
                         <li>Tracks: <span id="source-stat-tracks">...</span></li>
                         <li>Artists: <span id="source-stat-artists">...</span></li>
                         <li>Albums: <span id="source-stat-albums">...</span></li>
+                        <li>Playlists: <span id="source-stat-playlists">...</span></li>
                     </ul>
                 </div>
             </section>
@@ -47,13 +48,21 @@
             <!-- Transfer Controls -->
             <section class="controls-panel">
                 <div class="control-box">
-                    <h3 class="box-title">Options</h3>
+                    <h3 class="box-title">Transfer Between Accounts</h3>
                     <div class="checkbox-group">
                         <label class="checkbox-label"><input type="checkbox" id="check-tracks" checked> 🎵 Tracks</label>
                         <label class="checkbox-label"><input type="checkbox" id="check-artists" checked> 🎤 Artists</label>
                         <label class="checkbox-label"><input type="checkbox" id="check-albums" checked> 📀 Albums</label>
+                        <label class="checkbox-label"><input type="checkbox" id="check-playlists" checked> 📋 Playlists</label>
                     </div>
                     <button id="btn-start-transfer" class="btn btn-primary btn-large" disabled>Start Transfer ▶</button>
+                    <hr class="divider">
+                    <h3 class="box-title">Backup / Restore (JSON)</h3>
+                    <p class="desc-small">Download favorites as JSON or restore from file.</p>
+                    <div class="button-row">
+                        <button id="btn-download-json" class="btn btn-sm" disabled>Download JSON</button>
+                        <label class="btn btn-sm btn-file"><input type="file" id="input-json-file" accept=".json" hidden> Restore from JSON</label>
+                    </div>
                 </div>
             </section>
 
@@ -78,6 +87,7 @@
                         <li>Tracks: <span id="target-stat-tracks">...</span></li>
                         <li>Artists: <span id="target-stat-artists">...</span></li>
                         <li>Albums: <span id="target-stat-albums">...</span></li>
+                        <li>Playlists: <span id="target-stat-playlists">...</span></li>
                     </ul>
                 </div>
             </section>

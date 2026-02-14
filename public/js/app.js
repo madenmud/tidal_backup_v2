@@ -5,7 +5,7 @@ class App {
     constructor() {
         this.accounts = { source: null, target: null };
 
-        const currentVersion = 'v2.1.2-vercel';
+        const currentVersion = 'v2.2.0';
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -30,6 +30,8 @@ class App {
         document.getElementById('btn-settings').onclick = () => this.toggleModal('settings-modal', true);
         document.getElementById('btn-settings-close').onclick = () => this.saveSettings();
         document.getElementById('btn-start-transfer').onclick = () => this.startTransfer();
+        document.getElementById('btn-download-json').onclick = () => this.downloadJson();
+        document.getElementById('input-json-file').onchange = (e) => this.restoreFromJson(e);
 
         document.querySelectorAll('.preset-id').forEach(btn => {
             btn.onclick = () => {
@@ -110,13 +112,14 @@ class App {
 
     async refreshStats(type) {
         const account = this.accounts[type];
-        const types = ['tracks', 'artists', 'albums'];
+        const types = ['tracks', 'artists', 'albums', 'playlists'];
         for (const t of types) {
             try {
                 const items = await this.api.getFavorites(account.userId, account.tokens.access_token, t);
-                document.getElementById(`${type}-stat-${t}`).textContent = items.length;
+                const el = document.getElementById(`${type}-stat-${t}`);
+                if (el) el.textContent = items.length;
                 account[t] = items;
-            } catch(e) { console.error(`Stat error (${t}):`, e); }
+            } catch (e) { console.error(`Stat error (${t}):`, e); }
         }
     }
 
@@ -129,7 +132,16 @@ class App {
     }
 
     checkReadiness() {
-        document.getElementById('btn-start-transfer').disabled = !(this.accounts.source && this.accounts.target);
+        const both = this.accounts.source && this.accounts.target;
+        document.getElementById('btn-start-transfer').disabled = !both;
+        document.getElementById('btn-download-json').disabled = !this.accounts.source;
+    }
+
+    _extractItem(entry, type) {
+        const item = entry.item || entry[type.slice(0, -1)] || entry.track || entry.artist || entry.album || entry.playlist || entry;
+        const id = item?.id ?? entry?.id;
+        const name = item?.title ?? item?.name ?? entry?.title ?? entry?.name ?? String(id);
+        return id ? { id, name } : null;
     }
 
     async startTransfer() {
@@ -137,6 +149,7 @@ class App {
         if (document.getElementById('check-tracks').checked) types.push('tracks');
         if (document.getElementById('check-artists').checked) types.push('artists');
         if (document.getElementById('check-albums').checked) types.push('albums');
+        if (document.getElementById('check-playlists')?.checked) types.push('playlists');
 
         const section = document.getElementById('progress-section');
         const bar = document.getElementById('progress-bar');
@@ -161,15 +174,15 @@ class App {
         for (const type of types) {
             const items = this.accounts.source[type] || [];
             for (const entry of items) {
-                const item = entry.item || entry.track || entry.artist || entry.album;
-                if (!item) continue;
+                const extracted = this._extractItem(entry, type);
+                if (!extracted) continue;
                 try {
-                    await this.api.addFavorite(this.accounts.target.userId, this.accounts.target.tokens.access_token, type, item.id);
+                    await this.api.addFavorite(this.accounts.target.userId, this.accounts.target.tokens.access_token, type, extracted.id);
                     done++;
                     bar.style.width = `${(done / total) * 100}%`;
-                    status.textContent = `Moved: ${item.title || item.name} (${done}/${total})`;
+                    status.textContent = `Moved: ${extracted.name} (${done}/${total})`;
                 } catch (e) {
-                    addLog(`Failed: ${item.title || item.name}: ${e.message}`);
+                    addLog(`Failed: ${extracted.name}: ${e.message}`);
                 }
                 await new Promise(r => setTimeout(r, 200));
             }
@@ -177,6 +190,94 @@ class App {
         addLog('Done! 🎉');
         status.textContent = 'Transfer Complete!';
         await this.refreshStats('target');
+    }
+
+    downloadJson() {
+        if (!this.accounts.source) return;
+        const data = {
+            tracks: (this.accounts.source.tracks || []).map((e) => {
+                const x = this._extractItem(e, 'tracks');
+                return x ? { id: x.id, name: x.name } : null;
+            }).filter(Boolean),
+            artists: (this.accounts.source.artists || []).map((e) => {
+                const x = this._extractItem(e, 'artists');
+                return x ? { id: x.id, name: x.name } : null;
+            }).filter(Boolean),
+            albums: (this.accounts.source.albums || []).map((e) => {
+                const x = this._extractItem(e, 'albums');
+                return x ? { id: x.id, name: x.name } : null;
+            }).filter(Boolean),
+            playlists: (this.accounts.source.playlists || []).map((e) => {
+                const x = this._extractItem(e, 'playlists');
+                return x ? { id: x.id, name: x.name } : null;
+            }).filter(Boolean),
+            exportedAt: new Date().toISOString()
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `tidal_favorites_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+
+    async restoreFromJson(event) {
+        const file = event.target?.files?.[0];
+        if (!file) return;
+        const target = this.accounts.target;
+        if (!target) {
+            alert('Connect Target account first.');
+            event.target.value = '';
+            return;
+        }
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            const section = document.getElementById('progress-section');
+            const bar = document.getElementById('progress-bar');
+            const status = document.getElementById('progress-status');
+            const logs = document.getElementById('log-container');
+            section.classList.remove('hidden');
+            logs.innerHTML = '';
+
+            const addLog = (msg) => {
+                const div = document.createElement('div');
+                div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+                logs.appendChild(div);
+                logs.scrollTop = logs.scrollHeight;
+            };
+
+            const types = ['tracks', 'artists', 'albums', 'playlists'];
+            let total = 0;
+            types.forEach(t => { total += (data[t] || []).length; });
+            if (total === 0) { addLog('No items in file.'); event.target.value = ''; return; }
+
+            let done = 0;
+            addLog(`Restoring ${total} items from JSON...`);
+            for (const type of types) {
+                const items = data[type] || [];
+                for (const entry of items) {
+                    const id = entry.id ?? entry.item?.id;
+                    const name = entry.name ?? entry.title ?? String(id);
+                    if (!id) continue;
+                    try {
+                        await this.api.addFavorite(target.userId, target.tokens.access_token, type, id);
+                        done++;
+                        bar.style.width = `${(done / total) * 100}%`;
+                        status.textContent = `Added: ${name} (${done}/${total})`;
+                    } catch (e) {
+                        addLog(`Failed: ${name}: ${e.message}`);
+                    }
+                    await new Promise(r => setTimeout(r, 200));
+                }
+            }
+            addLog('Restore complete! 🎉');
+            status.textContent = 'Restore Complete!';
+            await this.refreshStats('target');
+        } catch (e) {
+            alert(`Invalid JSON: ${e.message}`);
+        }
+        event.target.value = '';
     }
 }
 window.onload = () => { window.app = new App(); };

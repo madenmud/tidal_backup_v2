@@ -110,6 +110,12 @@ body {
 }
 
 .box-title { margin: 0 0 1rem; font-size: 1.1rem; font-weight: 900; text-transform: uppercase; }
+.box-title + .box-title { margin-top: 1.5rem; }
+.divider { margin: 1.5rem 0; border: none; border-top: 2px solid var(--border); }
+.desc-small { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem; }
+.button-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.btn-file { cursor: pointer; margin: 0; }
+.btn-file input { display: none; }
 
 .checkbox-group { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
 .checkbox-label { display: flex; align-items: center; gap: 0.5rem; font-weight: 800; cursor: pointer; }
