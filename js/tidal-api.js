@@ -15,31 +15,35 @@ class TidalAPI {
 
     async fetchWithProxy(url, options = {}, retryCount = 0) {
         const proxies = [
+            'https://api.allorigins.win/raw?url=',
             'https://corsproxy.io/?',
-            'https://thingproxy.freeboard.io/fetch/',
-            'https://cors-anywhere.azm.workers.dev/',
-            'https://api.allorigins.win/raw?url='
+            'https://thingproxy.freeboard.io/fetch/'
         ];
         
         const currentProxy = retryCount === 0 && this.proxyUrl ? this.proxyUrl : proxies[retryCount % proxies.length];
         
-        // Robust encoding logic
+        // Handle encoding: AllOrigins needs it, CORSProxy doesn't usually
         let targetUrl = `${currentProxy}${encodeURIComponent(url)}`;
-        if (currentProxy.includes('thingproxy') || (currentProxy.includes('corsproxy.io') && !url.includes('?'))) {
+        if (currentProxy.includes('corsproxy') || currentProxy.includes('thingproxy')) {
             targetUrl = `${currentProxy}${url}`;
         }
 
         console.log(`[TidalAPI] Attempt ${retryCount + 1}: ${targetUrl}`);
         
         try {
-            // CRITICAL: Use 'Simple Request' to avoid CORS preflight issues
-            // No custom headers, standard method, standard content type
-            const fetchOptions = {
-                method: options.method || 'GET',
-                body: options.body
-            };
+            const headers = { ...options.headers };
+            
+            // CRITICAL: Content-Type is MANDATORY for POST, but must be 'simple' to avoid preflight
+            if (options.method === 'POST') {
+                headers['Content-Type'] = 'application/x-www-form-urlencoded';
+            }
 
-            const response = await fetch(targetUrl, fetchOptions);
+            const response = await fetch(targetUrl, {
+                method: options.method || 'GET',
+                headers: headers,
+                body: options.body
+            });
+            
             const text = await response.text();
             
             if (!response.ok) {
@@ -47,7 +51,7 @@ class TidalAPI {
                 if (retryCount < proxies.length - 1) {
                     return this.fetchWithProxy(url, options, retryCount + 1);
                 }
-                throw new Error(`Proxy error: ${response.status}`);
+                throw new Error(`Proxy error: ${response.status} - ${text}`);
             }
 
             try {

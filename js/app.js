@@ -10,7 +10,7 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v25'; // Simple Request version
+        const currentVersion = 'v26'; // Content-Type Enforcement version
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -20,8 +20,8 @@ class App {
         }
 
         this.api = new TidalAPI(
-            localStorage.getItem('tidal_client_id') || 'H9iEbAVflp2n8j2L', // Fire TV ID
-            localStorage.getItem('tidal_proxy') || 'https://corsproxy.io/?'
+            localStorage.getItem('tidal_client_id') || 'pUBRShyxR8fkaI0D', // Web ID as default
+            localStorage.getItem('tidal_proxy') || 'https://api.allorigins.win/raw?url='
         );
 
         this.initUI();
