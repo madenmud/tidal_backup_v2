@@ -67,8 +67,8 @@ class App {
     async loadSessions() {
         const sSource = localStorage.getItem('tidal_v2_session_source');
         const sTarget = localStorage.getItem('tidal_v2_session_target');
-        if (sSource) this.handleAuthSuccess('source', JSON.parse(sSource));
-        if (sTarget) this.handleAuthSuccess('target', JSON.parse(sTarget));
+        if (sSource) await this.handleAuthSuccess('source', JSON.parse(sSource));
+        if (sTarget) await this.handleAuthSuccess('target', JSON.parse(sTarget));
     }
 
     async login(type) {
