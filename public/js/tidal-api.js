@@ -72,8 +72,12 @@ class TidalAPI {
                     if (data.access_token) resolve(data);
                     else setTimeout(poll, pollInterval);
                 } catch (e) {
-                    if (e.message.includes('authorization_pending')) setTimeout(poll, pollInterval);
-                    else reject(e);
+                    const msg = (e.message || '').toLowerCase();
+                    if (msg.includes('authorization_pending') || msg.includes('not authorized yet') || msg.includes('slow_down')) {
+                        setTimeout(poll, pollInterval);
+                    } else {
+                        reject(e);
+                    }
                 }
             };
             setTimeout(poll, pollInterval);
