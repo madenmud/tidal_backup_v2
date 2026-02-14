@@ -15,43 +15,34 @@ class TidalAPI {
 
     async fetchWithProxy(url, options = {}, retryCount = 0) {
         const proxies = [
-            'https://corsproxy.io/?',
+            'https://api.codetabs.com/v1/proxy?quest=',
             'https://api.allorigins.win/raw?url=',
-            'https://cors-anywhere.azm.workers.dev/',
-            'https://api.codetabs.com/v1/proxy?quest='
+            'https://corsproxy.io/?'
         ];
         
         const currentProxy = retryCount === 0 && this.proxyUrl ? this.proxyUrl : proxies[retryCount % proxies.length];
         
-        // Use full encoding for allorigins/codetabs, raw for others
-        let targetUrl = (currentProxy.includes('allorigins') || currentProxy.includes('codetabs'))
-            ? `${currentProxy}${encodeURIComponent(url)}`
-            : `${currentProxy}${url}`;
+        // IMPORTANT: Ensure target URL is fully encoded and clean
+        const targetUrl = `${currentProxy}${encodeURIComponent(url)}`;
 
         console.log(`[TidalAPI] Attempt ${retryCount + 1}: ${targetUrl}`);
         
         try {
-            // CRITICAL: Construct a 'Simple Request' to bypass CORS Preflight (OPTIONS)
             const fetchOptions = {
                 method: options.method || 'GET',
-                body: options.body
-            };
-
-            // Only add Content-Type for POST to keep it a 'Simple Request'
-            if (fetchOptions.method === 'POST') {
-                fetchOptions.headers = {
+                body: options.body,
+                headers: {
+                    'Accept': 'application/json',
                     'Content-Type': 'application/x-www-form-urlencoded'
-                };
-            }
+                }
+            };
 
             const response = await fetch(targetUrl, fetchOptions);
             const text = await response.text();
             
             if (!response.ok) {
                 console.warn(`[TidalAPI] Attempt ${retryCount + 1} failed (${response.status})`);
-                
-                // 401 is a Client ID error, 415 is a header error - both worth retrying with different proxy
-                if (retryCount < proxies.length - 1) {
+                if (retryCount < proxies.length - 1 && response.status !== 401) {
                     return this.fetchWithProxy(url, options, retryCount + 1);
                 }
                 throw new Error(`Proxy error: ${response.status} - ${text}`);
@@ -64,7 +55,7 @@ class TidalAPI {
             }
         } catch (e) {
             console.error(`[TidalAPI] Attempt ${retryCount + 1} error:`, e);
-            if (retryCount < proxies.length - 1) {
+            if (retryCount < proxies.length - 1 && !e.message.includes('401')) {
                 return this.fetchWithProxy(url, options, retryCount + 1);
             }
             throw e;
@@ -78,10 +69,7 @@ class TidalAPI {
         params.append('client_id', this.clientId);
         params.append('scope', 'r_usr w_usr w_sub');
 
-        // Include client_id in URL as a fallback for header-stripping proxies
-        const authUrl = `${this.authBase}/oauth2/device_authorization?client_id=${this.clientId}`;
-
-        return this.fetchWithProxy(authUrl, {
+        return this.fetchWithProxy(`${this.authBase}/oauth2/device_authorization`, {
             method: 'POST',
             body: params.toString()
         });
@@ -93,7 +81,7 @@ class TidalAPI {
         params.append('device_code', deviceCode);
         params.append('grant_type', 'urn:ietf:params:oauth:grant-type:device_code');
 
-        const tokenUrl = `${this.authBase}/oauth2/token?client_id=${this.clientId}`;
+        const tokenUrl = `${this.authBase}/oauth2/token`;
         const pollInterval = (interval || 5) * 1000;
 
         return new Promise((resolve, reject) => {
@@ -149,6 +137,8 @@ class TidalAPI {
         });
     }
 
+    // --- Data Fetching ---
+
     async getProfile(accessToken) {
         return this.fetchWithProxy(`${this.apiBase}/sessions`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
@@ -172,6 +162,8 @@ class TidalAPI {
 
         return items;
     }
+
+    // --- Data Restoration ---
 
     async addFavorite(userId, accessToken, type, id) {
         const endpointMap = {

@@ -10,7 +10,7 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v38'; // Simple Request strategy
+        const currentVersion = 'v39'; // Clean URL version
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -21,7 +21,7 @@ class App {
 
         this.api = new TidalAPI(
             localStorage.getItem('tidal_client_id') || 'pUBRShyxR8fkaI0D', // Web ID
-            localStorage.getItem('tidal_proxy') || 'https://corsproxy.io/?'
+            localStorage.getItem('tidal_proxy') || 'https://api.codetabs.com/v1/proxy?quest='
         );
 
         this.initUI();
