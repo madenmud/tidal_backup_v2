@@ -10,7 +10,7 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v29'; // Explicit Content-Type version
+        const currentVersion = 'v30'; // Bugfix: Property name version
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -20,7 +20,7 @@ class App {
         }
 
         this.api = new TidalAPI(
-            localStorage.getItem('tidal_client_id') || 'H9iEbAVflp2n8j2L', // Fire TV ID
+            localStorage.getItem('tidal_client_id') || 'pUBRShyxR8fkaI0D', // Web ID as default
             localStorage.getItem('tidal_proxy') || 'https://api.allorigins.win/raw?url='
         );
 
@@ -107,20 +107,29 @@ class App {
 
         try {
             const deviceAuth = await this.api.getDeviceCode();
-            userCodeEl.textContent = deviceAuth.userCode;
+            console.log('[App] Device Auth Response:', deviceAuth);
+            
+            // Fix: Tidal API uses snake_case (device_code, user_code)
+            const userCode = deviceAuth.user_code || deviceAuth.userCode;
+            const deviceCode = deviceAuth.device_code || deviceAuth.deviceCode;
+            const interval = deviceAuth.interval || 5;
+
+            if (!userCode || !deviceCode) throw new Error('Failed to get valid authorization codes');
+
+            userCodeEl.textContent = userCode;
 
             // Automatically open Tidal Login in a popup
-            const popupUrl = `https://link.tidal.com/${deviceAuth.userCode}`;
+            const popupUrl = `https://link.tidal.com/${userCode}`;
             window.open(popupUrl, 'tidal-login', 'width=600,height=800');
 
-            let seconds = deviceAuth.expiresIn;
+            let seconds = deviceAuth.expires_in || 300;
             const timer = setInterval(() => {
                 seconds--;
                 timerEl.textContent = seconds;
                 if (seconds <= 0) clearInterval(timer);
             }, 1000);
 
-            const tokens = await this.api.pollForToken(deviceAuth.deviceCode, deviceAuth.interval);
+            const tokens = await this.api.pollForToken(deviceCode, interval);
             clearInterval(timer);
             
             await this.handleSuccessfulLogin(type, tokens);

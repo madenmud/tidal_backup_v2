@@ -16,13 +16,13 @@ class TidalAPI {
     async fetchWithProxy(url, options = {}, retryCount = 0) {
         const proxies = [
             'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?',
             'https://cors-anywhere.azm.workers.dev/',
-            'https://corsproxy.io/?'
+            ''
         ];
         
         const currentProxy = retryCount === 0 && this.proxyUrl ? this.proxyUrl : proxies[retryCount % proxies.length];
         
-        // Ensure proxy format: AllOrigins needs encoding, CORSProxy needs raw
         let targetUrl = url;
         if (currentProxy) {
             targetUrl = (currentProxy.includes('allorigins') || currentProxy.includes('workers.dev')) 
@@ -41,8 +41,7 @@ class TidalAPI {
                 }
             };
 
-            // CRITICAL: Tidal REQUIRES content-type for POST, even with empty body
-            if (options.method === 'POST') {
+            if (fetchOptions.method === 'POST') {
                 fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
             }
 
@@ -53,7 +52,7 @@ class TidalAPI {
                 console.warn(`[TidalAPI] Attempt ${retryCount + 1} failed (${response.status})`);
                 
                 if (response.status === 401) {
-                    throw new Error(`Invalid Client ID (401). Try another preset.`);
+                    throw new Error(`Invalid Client ID (401). Please choose a different Preset in Settings.`);
                 }
 
                 if (retryCount < proxies.length - 1) {
@@ -83,7 +82,6 @@ class TidalAPI {
         params.append('client_id', this.clientId);
         params.append('scope', 'r_usr w_usr');
 
-        // Pass params in BOTH URL and body for maximum safety
         const authUrl = `${this.authBase}/oauth2/device_authorization?${params.toString()}`;
 
         return this.fetchWithProxy(authUrl, {
