@@ -8,6 +8,15 @@ class App {
             target: null
         };
 
+        const currentVersion = 'v2.0.1';
+        const savedVersion = localStorage.getItem('tidal_v2_version');
+        
+        if (savedVersion !== currentVersion) {
+            console.log('New version detected, resetting defaults.');
+            localStorage.clear();
+            localStorage.setItem('tidal_v2_version', currentVersion);
+        }
+
         this.clientId = localStorage.getItem('tidal_v2_client_id') || 'pUBRShyxR8fkaI0D';
         this.api = new TidalAPI(this.clientId);
 
