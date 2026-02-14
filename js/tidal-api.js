@@ -77,9 +77,18 @@ class TidalAPI {
         params.append('grant_type', 'urn:ietf:params:oauth:grant-type:device_code');
 
         const tokenUrl = `${this.authBase}/oauth2/token?client_id=${this.clientId}`;
+        const pollInterval = (interval || 5) * 1000;
 
         return new Promise((resolve, reject) => {
-            const poll = setInterval(async () => {
+            const startTime = Date.now();
+            const timeout = 300000; // 5 minutes
+
+            const poll = async () => {
+                if (Date.now() - startTime > timeout) {
+                    reject(new Error('Login timed out'));
+                    return;
+                }
+
                 try {
                     const data = await this.fetchWithProxy(tokenUrl, {
                         method: 'POST',
@@ -87,22 +96,24 @@ class TidalAPI {
                     });
                     
                     if (data.access_token) {
-                        clearInterval(poll);
                         resolve(data);
+                    } else if (data.error === 'authorization_pending') {
+                        setTimeout(poll, pollInterval);
+                    } else {
+                        reject(new Error(data.error_description || data.error));
                     }
                 } catch (e) {
-                    if (!e.message.includes('authorization_pending')) {
-                        clearInterval(poll);
+                    // If it's just a 400 with 'authorization_pending', keep going
+                    if (e.message.includes('authorization_pending')) {
+                        setTimeout(poll, pollInterval);
+                    } else {
                         reject(e);
                     }
                 }
-            }, interval * 1000);
+            };
 
-            // Timeout after 5 mins
-            setTimeout(() => {
-                clearInterval(poll);
-                reject(new Error('Login timed out'));
-            }, 300000);
+            // Start polling
+            setTimeout(poll, pollInterval);
         });
     }
 
