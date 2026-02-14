@@ -10,7 +10,7 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        const currentVersion = 'v36'; // CORS-Anywhere Default version
+        const currentVersion = 'v37'; // JSON Payload version
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
@@ -20,8 +20,8 @@ class App {
         }
 
         this.api = new TidalAPI(
-            localStorage.getItem('tidal_client_id') || 'pUBRShyxR8fkaI0D', // Web ID
-            localStorage.getItem('tidal_proxy') || 'https://cors-anywhere.azm.workers.dev/'
+            localStorage.getItem('tidal_client_id') || 'zU4XHVVkc2tDPo4t', // TV ID (Most reliable for Device Flow)
+            localStorage.getItem('tidal_proxy') || 'https://thingproxy.freeboard.io/fetch/'
         );
 
         this.initUI();

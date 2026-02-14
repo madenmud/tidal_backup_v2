@@ -15,18 +15,19 @@ class TidalAPI {
 
     async fetchWithProxy(url, options = {}, retryCount = 0) {
         const proxies = [
-            'https://cors-anywhere.azm.workers.dev/',
-            'https://api.allorigins.win/raw?url=',
             'https://thingproxy.freeboard.io/fetch/',
+            'https://cors-proxy.htmldriven.com/?url=',
+            'https://api.allorigins.win/raw?url=',
             'https://corsproxy.io/?'
         ];
         
         const currentProxy = retryCount === 0 && this.proxyUrl ? this.proxyUrl : proxies[retryCount % proxies.length];
         
-        // Robust encoding: AllOrigins needs it, CORS-Anywhere usually doesn't for the path
         let targetUrl = url;
         if (currentProxy) {
-            targetUrl = currentProxy.includes('allorigins') ? `${currentProxy}${encodeURIComponent(url)}` : `${currentProxy}${url}`;
+            targetUrl = (currentProxy.includes('allorigins') || currentProxy.includes('htmldriven')) 
+                ? `${currentProxy}${encodeURIComponent(url)}` 
+                : `${currentProxy}${url}`;
         }
 
         console.log(`[TidalAPI] Attempt ${retryCount + 1}: ${targetUrl}`);
@@ -36,13 +37,18 @@ class TidalAPI {
                 method: options.method || 'GET',
                 body: options.body,
                 headers: {
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    ...options.headers
                 }
             };
 
-            // CRITICAL: Content-Type is MANDATORY but must be 'simple'
-            if (options.method === 'POST') {
-                fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+            // Set Content-Type explicitly based on body content
+            if (fetchOptions.method === 'POST') {
+                if (typeof fetchOptions.body === 'string' && fetchOptions.body.startsWith('{')) {
+                    fetchOptions.headers['Content-Type'] = 'application/json';
+                } else {
+                    fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+                }
             }
 
             const response = await fetch(targetUrl, fetchOptions);
@@ -73,26 +79,24 @@ class TidalAPI {
     // --- Authentication (Device Flow) ---
 
     async getDeviceCode() {
-        const params = new URLSearchParams();
-        params.append('client_id', this.clientId);
-        params.append('scope', 'r_usr w_usr w_sub');
+        const body = {
+            client_id: this.clientId,
+            scope: 'r_usr w_usr w_sub'
+        };
 
-        // Append params to URL AND body for maximum compatibility
-        const authUrl = `${this.authBase}/oauth2/device_authorization?${params.toString()}`;
-
-        return this.fetchWithProxy(authUrl, {
+        // Try sending as JSON string - proxies often handle application/json better
+        return this.fetchWithProxy(`${this.authBase}/oauth2/device_authorization`, {
             method: 'POST',
-            body: params.toString()
+            body: JSON.stringify(body)
         });
     }
 
     async pollForToken(deviceCode, interval) {
-        const params = new URLSearchParams();
-        params.append('client_id', this.clientId);
-        params.append('device_code', deviceCode);
-        params.append('grant_type', 'urn:ietf:params:oauth:grant-type:device_code');
-
-        const tokenUrl = `${this.authBase}/oauth2/token?${params.toString()}`;
+        const body = {
+            client_id: this.clientId,
+            device_code: deviceCode,
+            grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
+        };
 
         return new Promise((resolve, reject) => {
             const startTime = Date.now();
@@ -106,9 +110,9 @@ class TidalAPI {
                 }
 
                 try {
-                    const data = await this.fetchWithProxy(tokenUrl, {
+                    const data = await this.fetchWithProxy(`${this.authBase}/oauth2/token`, {
                         method: 'POST',
-                        body: params.toString()
+                        body: JSON.stringify(body)
                     });
                     
                     console.log('[TidalAPI] Poll Response:', data);
