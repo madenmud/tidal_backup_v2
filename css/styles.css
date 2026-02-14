@@ -1,7 +1,7 @@
 /* Hi-Fi Jitter Meter - Unified Styles with Theme Support */
 
-/* --- Modern Theme Variables (Default) --- */
-:root {
+    /* --- Modern Theme Variables (Default) --- */
+:root, body.theme-modern {
     --bg: #0b0b0e;
     --surface: #16161a;
     --surface-hover: #1e1e24;

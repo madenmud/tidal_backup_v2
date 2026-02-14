@@ -22,20 +22,25 @@ class App {
     initUI() {
         // Theme Management
         const themeBtns = document.querySelectorAll('.theme-btn');
-        const savedTheme = localStorage.getItem('hifi-theme') || 'modern';
+        const savedTheme = localStorage.getItem('tidal-v2-theme') || 'modern';
         
         const applyTheme = (theme) => {
+            console.log('Switching to theme:', theme);
             document.body.classList.remove('theme-modern', 'theme-brutalist');
             document.body.classList.add(`theme-${theme}`);
-            localStorage.setItem('hifi-theme', theme);
+            localStorage.setItem('tidal-v2-theme', theme);
             themeBtns.forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.theme === theme);
+                const isActive = btn.getAttribute('data-theme') === theme;
+                btn.classList.toggle('active', isActive);
             });
         };
 
         applyTheme(savedTheme);
         themeBtns.forEach(btn => {
-            btn.onclick = () => applyTheme(btn.dataset.theme);
+            btn.addEventListener('click', () => {
+                const targetTheme = btn.getAttribute('data-theme');
+                applyTheme(targetTheme);
+            });
         });
 
         // Auth buttons
