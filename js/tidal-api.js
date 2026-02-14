@@ -15,18 +15,18 @@ class TidalAPI {
 
     async fetchWithProxy(url, options = {}, retryCount = 0) {
         const proxies = [
-            'https://api.allorigins.win/raw?url=',
-            'https://corsproxy.io/?',
             'https://cors-anywhere.azm.workers.dev/',
-            ''
+            'https://api.allorigins.win/raw?url=',
+            'https://thingproxy.freeboard.io/fetch/',
+            'https://corsproxy.io/?'
         ];
         
         const currentProxy = retryCount === 0 && this.proxyUrl ? this.proxyUrl : proxies[retryCount % proxies.length];
         
+        // Robust encoding: AllOrigins needs it, CORS-Anywhere usually doesn't for the path
         let targetUrl = url;
         if (currentProxy) {
-            // Encode the URL if the proxy uses a ?url= format
-            targetUrl = currentProxy.includes('?') ? `${currentProxy}${encodeURIComponent(url)}` : `${currentProxy}${url}`;
+            targetUrl = currentProxy.includes('allorigins') ? `${currentProxy}${encodeURIComponent(url)}` : `${currentProxy}${url}`;
         }
 
         console.log(`[TidalAPI] Attempt ${retryCount + 1}: ${targetUrl}`);
@@ -36,13 +36,12 @@ class TidalAPI {
                 method: options.method || 'GET',
                 body: options.body,
                 headers: {
-                    'Accept': 'application/json',
-                    ...options.headers
+                    'Accept': 'application/json'
                 }
             };
 
-            // CRITICAL: Explicitly set Content-Type for POST to ensure proxies don't strip it
-            if (fetchOptions.method === 'POST') {
+            // CRITICAL: Content-Type is MANDATORY but must be 'simple'
+            if (options.method === 'POST') {
                 fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
             }
 
@@ -51,13 +50,7 @@ class TidalAPI {
             
             if (!response.ok) {
                 console.warn(`[TidalAPI] Attempt ${retryCount + 1} failed (${response.status})`);
-                
-                // 401 usually means the Client ID is rejected, not a proxy issue
-                if (response.status === 401 && text.includes('invalid_client')) {
-                    throw new Error(`Invalid Client ID (401). Try switching to another Preset in Settings.`);
-                }
-
-                if (retryCount < proxies.length - 1) {
+                if (retryCount < proxies.length - 1 && response.status !== 401) {
                     return this.fetchWithProxy(url, options, retryCount + 1);
                 }
                 throw new Error(`Proxy error: ${response.status} - ${text}`);
@@ -84,8 +77,10 @@ class TidalAPI {
         params.append('client_id', this.clientId);
         params.append('scope', 'r_usr w_usr w_sub');
 
-        // Do NOT put client_id in URL to prevent double-parameter confusion at Tidal's end
-        return this.fetchWithProxy(`${this.authBase}/oauth2/device_authorization`, {
+        // Append params to URL AND body for maximum compatibility
+        const authUrl = `${this.authBase}/oauth2/device_authorization?${params.toString()}`;
+
+        return this.fetchWithProxy(authUrl, {
             method: 'POST',
             body: params.toString()
         });
@@ -96,6 +91,8 @@ class TidalAPI {
         params.append('client_id', this.clientId);
         params.append('device_code', deviceCode);
         params.append('grant_type', 'urn:ietf:params:oauth:grant-type:device_code');
+
+        const tokenUrl = `${this.authBase}/oauth2/token?${params.toString()}`;
 
         return new Promise((resolve, reject) => {
             const startTime = Date.now();
@@ -109,7 +106,7 @@ class TidalAPI {
                 }
 
                 try {
-                    const data = await this.fetchWithProxy(`${this.authBase}/oauth2/token`, {
+                    const data = await this.fetchWithProxy(tokenUrl, {
                         method: 'POST',
                         body: params.toString()
                     });
