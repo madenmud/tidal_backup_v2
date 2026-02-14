@@ -147,7 +147,9 @@ class App {
                 if (el) el.textContent = items.length;
                 account[t] = items;
             } catch (e) {
-                console.error(`Stat error (${t}):`, e);
+                const msg = (e.message || '').toLowerCase();
+                const isApiRestricted = msg.includes('404') || msg.includes('non-json') || msg.includes('403');
+                if (!isApiRestricted) console.error(`Stat error (${t}):`, e);
                 const el = document.getElementById(`${type}-stat-${t}`);
                 if (el) el.textContent = '—';
                 account[t] = [];

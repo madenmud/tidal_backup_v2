@@ -34,7 +34,8 @@ class TidalAPI {
         } catch (error) {
             const msg = (error.message || '').toLowerCase();
             const isPendingAuth = msg.includes('authorization_pending') || msg.includes('not authorized yet') || msg.includes('slow_down');
-            if (!isPendingAuth) console.error(`[TidalAPI] Error:`, error);
+            const isExpectedRestriction = msg.includes('404') || msg.includes('403');
+            if (!isPendingAuth && !isExpectedRestriction) console.error(`[TidalAPI] Error:`, error);
             throw error;
         }
     }
