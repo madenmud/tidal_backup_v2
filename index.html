@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tidal Backup V2 - SPA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=JetBrains+Mono:wght@500;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="theme-brutalist">
+    <header class="header">
+        <h1 class="title">Tidal Backup V2 🤖</h1>
+        <div class="header-actions">
+            <button id="btn-settings" class="btn btn-icon">⚙️</button>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="dual-panel">
+            <!-- Source Panel -->
+            <section class="panel source-panel">
+                <h2 class="section-title">Source Account (Backup)</h2>
+                <div id="source-auth" class="auth-container">
+                    <button id="btn-source-login" class="btn btn-primary">Connect Tidal</button>
+                    <div id="source-device-flow" class="device-flow hidden">
+                        <p>Visit: <a href="https://link.tidal.com" target="_blank" class="link">link.tidal.com</a></p>
+                        <div class="user-code" id="source-user-code">XXXX-XXXX</div>
+                        <p class="timer">Waiting for login... <span id="source-timer">300</span>s</p>
+                    </div>
+                </div>
+                <div id="source-profile" class="profile-container hidden">
+                    <div class="profile-header">
+                        <span class="username" id="source-username">User Name</span>
+                        <button id="btn-source-logout" class="btn btn-sm">Logout</button>
+                    </div>
+                    <ul class="stats-list">
+                        <li>Tracks: <span id="source-stat-tracks">0</span></li>
+                        <li>Artists: <span id="source-stat-artists">0</span></li>
+                        <li>Albums: <span id="source-stat-albums">0</span></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Transfer Controls -->
+            <section class="controls-panel">
+                <div class="control-box">
+                    <h3 class="box-title">Transfer Options</h3>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="check-tracks" checked> 🎵 Tracks
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="check-artists" checked> 🎤 Artists
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="check-albums" checked> 📀 Albums
+                        </label>
+                    </div>
+                    <button id="btn-start-transfer" class="btn btn-primary btn-large" disabled>Start Transfer ▶</button>
+                </div>
+            </section>
+
+            <!-- Target Panel -->
+            <section class="panel target-panel">
+                <h2 class="section-title">Target Account (Restore)</h2>
+                <div id="target-auth" class="auth-container">
+                    <button id="btn-target-login" class="btn btn-primary">Connect Tidal</button>
+                    <div id="target-device-flow" class="device-flow hidden">
+                        <p>Visit: <a href="https://link.tidal.com" target="_blank" class="link">link.tidal.com</a></p>
+                        <div class="user-code" id="target-user-code">XXXX-XXXX</div>
+                        <p class="timer">Waiting for login... <span id="target-timer">300</span>s</p>
+                    </div>
+                </div>
+                <div id="target-profile" class="profile-container hidden">
+                    <div class="profile-header">
+                        <span class="username" id="target-username">User Name</span>
+                        <button id="btn-target-logout" class="btn btn-sm">Logout</button>
+                    </div>
+                    <ul class="stats-list">
+                        <li>Tracks: <span id="target-stat-tracks">0</span></li>
+                        <li>Artists: <span id="target-stat-artists">0</span></li>
+                        <li>Albums: <span id="target-stat-albums">0</span></li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+
+        <!-- Progress Section -->
+        <section id="progress-section" class="section progress-section hidden">
+            <h2 class="section-title">Transfer Progress</h2>
+            <div class="progress-bar-container">
+                <div id="progress-bar" class="progress-bar"></div>
+            </div>
+            <div id="progress-status" class="progress-status">Preparing...</div>
+            <div id="log-container" class="log-container"></div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>Tidal Backup V2 - No API Key Needed · Static SPA · Local Session</p>
+    </footer>
+
+    <!-- Settings Drawer -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Settings</h2>
+            <div class="settings-group">
+                <label>CORS Proxy</label>
+                <input type="text" id="input-proxy" class="input" value="https://corsproxy.io/?">
+                <p class="help-text">Tidal API requires a proxy to bypass CORS in browsers.</p>
+            </div>
+            <div class="settings-group">
+                <label>Client ID</label>
+                <input type="text" id="input-client-id" class="input" value="zU4XSTBY6v3sq4Ax">
+                <p class="help-text">Default: Tidal Android App ID</p>
+            </div>
+            <div class="modal-close-btn">
+                <button id="btn-settings-close" class="btn btn-primary" style="width:100%">Save & Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/tidal-api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
