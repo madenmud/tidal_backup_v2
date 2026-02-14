@@ -10,18 +10,17 @@ class App {
         this.sourceAccount = null;
         this.targetAccount = null;
         
-        // Use a versioned storage key to force update defaults if needed
-        const currentVersion = 'v5'; // Bumped version
+        const currentVersion = 'v6'; // Bumped again
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
-            localStorage.removeItem('tidal_proxy');
-            localStorage.removeItem('tidal_client_id'); // Also clear old client ID
+            console.log('New version detected, resetting defaults.');
+            localStorage.clear(); // Nuclear option to ensure clean state
             localStorage.setItem('tidal_v2_version', currentVersion);
         }
 
         this.api = new TidalAPI(
-            localStorage.getItem('tidal_client_id') || 'p0qE9u9V8V8v8V8v',
+            localStorage.getItem('tidal_client_id') || 'zU4XSTBY6v3sq4Ax',
             localStorage.getItem('tidal_proxy') || 'https://api.allorigins.win/raw?url='
         );
 
