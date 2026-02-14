@@ -28,7 +28,8 @@ class TidalAPI {
             const response = await fetch(targetUrl, { method: options.method || 'GET', headers, body });
             const data = await response.json();
             if (!response.ok) {
-                const errMsg = data.errors?.[0]?.detail || data.error_description || (data.error && data.message ? `${data.error}: ${data.message}` : data.error || data.message) || `HTTP ${response.status}`;
+                const status = response.status;
+                const errMsg = (status === 404 || status === 403) ? `HTTP ${status}` : (data.errors?.[0]?.detail || data.error_description || (data.error && data.message ? `${data.error}: ${data.message}` : data.error || data.message) || `HTTP ${status}`);
                 throw new Error(errMsg);
             }
             return data;
