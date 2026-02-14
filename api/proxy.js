@@ -1,14 +1,8 @@
-// api/proxy.js - Private Transparent Proxy for Tidal API
+// api/proxy.js - Enhanced Private Proxy
 export default async function handler(req, res) {
     const { url } = req.query;
 
-    if (!url) {
-        return res.status(400).json({ error: 'Missing url parameter' });
-    }
-
-    if (!url.startsWith('https://api.tidal.com/') && !url.startsWith('https://auth.tidal.com/')) {
-        return res.status(403).json({ error: 'Forbidden target domain' });
-    }
+    if (!url) return res.status(400).json({ error: 'Missing url' });
 
     try {
         const headers = {
@@ -16,46 +10,39 @@ export default async function handler(req, res) {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         };
 
-        if (req.headers.authorization) {
-            headers['Authorization'] = req.headers.authorization;
-        }
+        if (req.headers.authorization) headers['Authorization'] = req.headers.authorization;
 
-        let body = undefined;
+        let fetchBody = undefined;
         if (req.method === 'POST') {
             const contentType = req.headers['content-type'] || 'application/json';
             headers['Content-Type'] = contentType;
 
+            // If Vercel has already parsed the body into an object, 
+            // and we need to send it as form-urlencoded to Tidal.
             if (contentType.includes('application/x-www-form-urlencoded')) {
-                // Convert parsed object back to form string
-                body = new URLSearchParams(req.body).toString();
-            } else if (contentType.includes('application/json')) {
-                body = JSON.stringify(req.body);
+                fetchBody = new URLSearchParams(req.body).toString();
             } else {
-                body = req.body;
+                fetchBody = typeof req.body === 'object' ? JSON.stringify(req.body) : req.body;
             }
         }
-
-        console.log(`[Proxy] ${req.method} -> ${url}`);
 
         const response = await fetch(url, {
             method: req.method,
             headers: headers,
-            body: body
+            body: fetchBody
         });
 
         const data = await response.json().catch(async () => {
             const text = await response.text();
             try { return JSON.parse(text); } catch(e) { return { raw: text }; }
         });
-        
-        // Ensure headers for client
+
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
         return res.status(response.status).json(data);
     } catch (error) {
-        console.error('Proxy Error:', error);
-        return res.status(500).json({ error: 'Proxy Exception', message: error.message });
+        return res.status(500).json({ error: 'Proxy fail', message: error.message });
     }
 }

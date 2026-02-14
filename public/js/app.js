@@ -3,21 +3,19 @@
  */
 class App {
     constructor() {
-        this.accounts = {
-            source: null,
-            target: null
-        };
+        this.accounts = { source: null, target: null };
 
-        const currentVersion = 'v2.1.0-vercel';
+        const currentVersion = 'v2.1.2-vercel';
         const savedVersion = localStorage.getItem('tidal_v2_version');
         
         if (savedVersion !== currentVersion) {
-            console.log('Vercel Migration: resetting defaults.');
+            console.log('Update detected: resetting defaults.');
             localStorage.clear();
             localStorage.setItem('tidal_v2_version', currentVersion);
         }
 
-        this.clientId = localStorage.getItem('tidal_v2_client_id') || 'zU4XHVVkc2tDPo4t'; // TV ID
+        // Default to Web ID from user's provided list
+        this.clientId = localStorage.getItem('tidal_v2_client_id') || 'pUBRShyxR8fkaI0D'; 
         this.api = new TidalAPI(this.clientId);
 
         this.initUI();
@@ -40,18 +38,14 @@ class App {
         });
     }
 
-    toggleModal(id, show) {
-        document.getElementById(id).classList.toggle('hidden', !show);
-    }
+    toggleModal(id, show) { document.getElementById(id).classList.toggle('hidden', !show); }
 
     saveSettings() {
         this.clientId = document.getElementById('input-client-id').value;
         localStorage.setItem('tidal_v2_client_id', this.clientId);
         this.api.clientId = this.clientId;
-
         const manualToken = document.getElementById('input-manual-token').value;
         if (manualToken) this.handleAuthSuccess('source', { access_token: manualToken });
-
         this.toggleModal('settings-modal', false);
     }
 
@@ -118,9 +112,11 @@ class App {
         const account = this.accounts[type];
         const types = ['tracks', 'artists', 'albums'];
         for (const t of types) {
-            const items = await this.api.getFavorites(account.userId, account.tokens.access_token, t);
-            document.getElementById(`${type}-stat-${t}`).textContent = items.length;
-            account[t] = items;
+            try {
+                const items = await this.api.getFavorites(account.userId, account.tokens.access_token, t);
+                document.getElementById(`${type}-stat-${t}`).textContent = items.length;
+                account[t] = items;
+            } catch(e) { console.error(`Stat error (${t}):`, e); }
         }
     }
 
