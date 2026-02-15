@@ -135,35 +135,20 @@ class TidalAPI {
     }
 
     async getFavorites(userId, accessToken, type) {
-        const rel = this._itemType(type);
-        const urlsToTry = [
-            () => {
-                const collectionType = this._collectionType(type);
-                return `${this.apiBase}/${collectionType}/${userId}/relationships/items?countryCode=US`;
-            },
-            () => `${this.apiBase}/userCollections/${userId}/relationships/${rel}?countryCode=US`
-        ];
-        for (const urlFn of urlsToTry) {
-            let items = [];
-            let cursor = null;
-            try {
-                do {
-                    let url = urlFn();
-                    if (cursor) url += `&page[cursor]=${encodeURIComponent(cursor)}`;
-                    const data = await this.fetchProxy(url, {
-                        headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/vnd.api+json' },
-                        suppressLog: true
-                    });
-                    items = items.concat(this._parseItems(data));
-                    cursor = data.meta?.pageCursor || null;
-                } while (cursor);
-                return items;
-            } catch (e) {
-                const is404 = e.message && (e.message.includes('404') || e.message.includes('Non-JSON'));
-                if (is404 && urlsToTry.indexOf(urlFn) < urlsToTry.length - 1) continue;
-                throw e;
-            }
-        }
+        const collectionType = this._collectionType(type);
+        let items = [];
+        let cursor = null;
+        do {
+            let url = `${this.apiBase}/${collectionType}/${userId}/relationships/items?countryCode=US`;
+            if (cursor) url += `&page[cursor]=${encodeURIComponent(cursor)}`;
+            const data = await this.fetchProxy(url, {
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/vnd.api+json' },
+                suppressLog: true
+            });
+            items = items.concat(this._parseItems(data));
+            cursor = data.meta?.pageCursor || null;
+        } while (cursor);
+        return items;
     }
 
     async addFavorite(userId, accessToken, type, itemId) {
