@@ -200,6 +200,8 @@ class TidalAPI {
     }
 
     async getFavorites(userId, accessToken, type) {
+        const legacy = await this._getFavoritesLegacy(userId, accessToken, type);
+        if (legacy !== null) return legacy;
         const skipOpenApi = this._openApiUnavailableUsers.has(userId);
         if (!skipOpenApi) {
             try {
@@ -209,8 +211,6 @@ class TidalAPI {
                 this._openApiUnavailableUsers.add(userId);
             }
         }
-        const legacy = await this._getFavoritesLegacy(userId, accessToken, type);
-        if (legacy) return legacy;
         const err = new Error('HTTP 404');
         err.status = 404;
         throw err;
@@ -244,16 +244,20 @@ class TidalAPI {
     }
 
     async addFavorite(userId, accessToken, type, itemId) {
-        const skipOpenApi = this._openApiUnavailableUsers.has(userId);
-        if (!skipOpenApi) {
-            try {
-                return await this._addFavoriteOpenApi(userId, accessToken, type, itemId);
-            } catch (e) {
-                if (e.status !== 404 && e.status !== 403) throw e;
-                this._openApiUnavailableUsers.add(userId);
+        try {
+            return await this._addFavoriteLegacy(accessToken, type, itemId);
+        } catch (e) {
+            const skipOpenApi = this._openApiUnavailableUsers.has(userId);
+            if (!skipOpenApi) {
+                try {
+                    return await this._addFavoriteOpenApi(userId, accessToken, type, itemId);
+                } catch (openApiErr) {
+                    if (openApiErr.status !== 404 && openApiErr.status !== 403) throw openApiErr;
+                    this._openApiUnavailableUsers.add(userId);
+                }
             }
+            throw e;
         }
-        return await this._addFavoriteLegacy(accessToken, type, itemId);
     }
 
     async _addFavoriteOpenApi(userId, accessToken, type, itemId) {

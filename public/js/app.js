@@ -348,7 +348,7 @@ class App {
                 logs.scrollTop = logs.scrollHeight;
             };
 
-            const types = ['tracks', 'artists', 'albums', 'playlists'];
+            const types = ['playlists', 'tracks', 'albums', 'artists'];
             let total = 0;
             types.forEach(t => { total += (data[t] || []).length; });
             if (total === 0) { addLog(this.t('noItemsInFile')); event.target.value = ''; return; }
