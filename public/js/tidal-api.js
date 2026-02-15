@@ -43,13 +43,15 @@ class TidalAPI {
                 const errMsg = (status === 404 || status === 403) ? `HTTP ${status}` : (data.errors?.[0]?.detail || data.error_description || (data.error && data.message ? `${data.error}: ${data.message}` : data.error || data.message) || `HTTP ${status}`);
                 const err = new Error(errMsg);
                 err.status = status;
+                if (data?.error) err.oauthError = data.error;
                 throw err;
             }
             return data;
         } catch (error) {
             if (suppressLog) { throw error; }
             const msg = (error.message || '').toLowerCase();
-            const isPendingAuth = msg.includes('authorization_pending') || msg.includes('not authorized yet') || msg.includes('slow_down');
+            const oauthPending = error.oauthError === 'authorization_pending' || error.oauthError === 'slow_down';
+            const isPendingAuth = oauthPending || msg.includes('authorization_pending') || msg.includes('not authorized yet') || msg.includes('slow_down');
             const isExpectedRestriction = msg.includes('404') || msg.includes('403');
             if (!isPendingAuth && !isExpectedRestriction) console.error(`[TidalAPI] Error:`, error);
             throw error;
@@ -99,8 +101,9 @@ class TidalAPI {
                     if (data.access_token) resolve(data);
                     else setTimeout(poll, pollInterval);
                 } catch (e) {
+                    const oauthPending = e.oauthError === 'authorization_pending' || e.oauthError === 'slow_down';
                     const msg = (e.message || '').toLowerCase();
-                    if (msg.includes('authorization_pending') || msg.includes('not authorized yet') || msg.includes('slow_down')) {
+                    if (oauthPending || msg.includes('authorization_pending') || msg.includes('not authorized yet') || msg.includes('slow_down')) {
                         setTimeout(poll, pollInterval);
                     } else {
                         reject(e);
