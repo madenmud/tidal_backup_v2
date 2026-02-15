@@ -232,6 +232,10 @@ body {
     transition: width 0.3s ease;
 }
 
+.log-actions {
+    margin-bottom: 0.5rem;
+}
+
 .log-container {
     height: 200px;
     overflow-y: auto;
@@ -241,6 +245,28 @@ body {
     padding: 1rem;
     font-size: 0.8rem;
     border: var(--bw) solid var(--border);
+}
+
+/* Toast */
+.toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    padding: 0.75rem 1.5rem;
+    background: var(--accent-secondary);
+    color: #000;
+    border: var(--bw) solid var(--border);
+    font-weight: 800;
+    text-transform: uppercase;
+    box-shadow: var(--shadow);
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.3s ease;
+}
+.toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
 }
 
 /* Modal */

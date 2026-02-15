@@ -45,6 +45,9 @@ class App {
         document.getElementById('btn-download-json').onclick = () => this.downloadJson();
         document.getElementById('input-json-file').onchange = (e) => this.restoreFromJson(e);
 
+        const btnCopyReport = document.getElementById('btn-copy-report');
+        if (btnCopyReport) btnCopyReport.onclick = () => this.copyFailureReport();
+
         document.getElementById('btn-lang-ko').onclick = () => { I18n.setLang('ko'); this.updateLangButtons(); };
         document.getElementById('btn-lang-en').onclick = () => { I18n.setLang('en'); this.updateLangButtons(); };
         document.getElementById('btn-help').onclick = () => document.getElementById('help-section').scrollIntoView({ behavior: 'smooth' });
@@ -232,7 +235,9 @@ class App {
         const bar = document.getElementById('progress-bar');
         const status = document.getElementById('progress-status');
         const logs = document.getElementById('log-container');
-
+        const logActions = document.getElementById('log-actions');
+        logActions?.classList.add('hidden');
+        this.lastFailureReport = null;
         section.classList.remove('hidden');
         section.scrollIntoView({ behavior: 'smooth' });
         logs.innerHTML = '';
@@ -240,6 +245,7 @@ class App {
         const percentEl = document.getElementById('progress-percent');
         if (percentEl) percentEl.textContent = '0%';
         status.textContent = this.t('initializing');
+        const failureLogs = [];
         const addLog = (msg) => {
             const div = document.createElement('div');
             div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
@@ -266,13 +272,19 @@ class App {
                     if (percentEl) percentEl.textContent = `${pct}%`;
                     status.textContent = `${this.t('moved')} ${extracted.name} (${done}/${total})`;
                 } catch (e) {
-                    addLog(`${this.t('failed')} ${extracted.name}: ${e.message}`);
+                    const msg = `${this.t('failed')} ${extracted.name}: ${e.message}`;
+                    addLog(msg);
+                    failureLogs.push({ op: 'transfer', type, name: extracted.name, id: extracted.id, error: e.message });
                 }
                 await new Promise(r => setTimeout(r, 200));
             }
         }
         addLog(this.t('done'));
         status.textContent = this.t('transferComplete');
+        if (failureLogs.length > 0) {
+            this.lastFailureReport = this._buildFailureReport('transfer', failureLogs);
+            logActions?.classList.remove('hidden');
+        }
         await this.refreshStats('target');
     }
 
@@ -328,6 +340,10 @@ class App {
             bar.style.width = '0%';
             if (percentEl) percentEl.textContent = '0%';
 
+            const logActions = document.getElementById('log-actions');
+            logActions?.classList.add('hidden');
+            this.lastFailureReport = null;
+            const failureLogs = [];
             const addLog = (msg) => {
                 const div = document.createElement('div');
                 div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
@@ -357,17 +373,62 @@ class App {
                         status.textContent = `${this.t('added')} ${name} (${done}/${total})`;
                     } catch (e) {
                         addLog(`${this.t('failed')} ${name}: ${e.message}`);
+                        failureLogs.push({ op: 'restore', type, name, id, error: e.message });
                     }
                     await new Promise(r => setTimeout(r, 200));
                 }
             }
             addLog(this.t('done'));
             status.textContent = this.t('restoreComplete');
+            if (failureLogs.length > 0) {
+                this.lastFailureReport = this._buildFailureReport('restore', failureLogs);
+                logActions?.classList.remove('hidden');
+            }
             await this.refreshStats('target');
         } catch (e) {
             alert(`${this.t('invalidJson')}: ${e.message}`);
         }
         event.target.value = '';
+    }
+
+    async copyFailureReport() {
+        if (!this.lastFailureReport) return;
+        try {
+            await navigator.clipboard.writeText(this.lastFailureReport);
+            this._showToast(this.t('reportCopied'));
+        } catch (e) {
+            alert(`${this.t('reportCopied')}: ${e.message}`);
+        }
+    }
+
+    _showToast(msg) {
+        const existing = document.getElementById('toast-message');
+        if (existing) existing.remove();
+        const toast = document.createElement('div');
+        toast.id = 'toast-message';
+        toast.className = 'toast';
+        toast.textContent = msg;
+        document.body.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add('show'));
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 2000);
+    }
+
+    _buildFailureReport(op, failureLogs) {
+        const version = window.__BUILD__?.version || '?';
+        const lines = [
+            `# Tidal Backup V2 - Failure Report`,
+            `Version: ${version}`,
+            `URL: ${location.href}`,
+            `Time: ${new Date().toISOString()}`,
+            `Operation: ${op}`,
+            `Failures: ${failureLogs.length}`,
+            ``,
+            failureLogs.map((f) => `- [${f.type}] ${f.name} (id:${f.id}): ${f.error}`).join('\n')
+        ];
+        return lines.join('\n');
     }
 }
 window.onload = () => { window.app = new App(); };

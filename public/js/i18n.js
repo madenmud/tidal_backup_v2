@@ -54,7 +54,9 @@ const I18n = {
             noItemsInFile: '파일에 항목이 없습니다.',
             restoringFromJson: '{n}개 JSON에서 복원 중...',
             added: '추가:',
-            invalidJson: '잘못된 JSON'
+            invalidJson: '잘못된 JSON',
+            copyReport: '실패 리포트 복사',
+            reportCopied: '클립보드에 복사됨'
         },
         en: {
             appTitle: 'Tidal Backup V2 🤖',
@@ -106,7 +108,9 @@ const I18n = {
             noItemsInFile: 'No items in file.',
             restoringFromJson: 'Restoring {n} items from JSON...',
             added: 'Added:',
-            invalidJson: 'Invalid JSON'
+            invalidJson: 'Invalid JSON',
+            copyReport: 'Copy failure report',
+            reportCopied: 'Copied to clipboard'
         }
     },
 
