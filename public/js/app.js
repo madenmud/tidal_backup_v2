@@ -41,7 +41,14 @@ class App {
         document.getElementById('btn-target-logout').onclick = () => this.logout('target');
         document.getElementById('btn-source-refresh').onclick = () => this.refreshStats('source');
         document.getElementById('btn-target-refresh').onclick = () => this.refreshStats('target');
-        document.getElementById('btn-settings').onclick = () => this.toggleModal('settings-modal', true);
+        document.getElementById('btn-settings').onclick = () => {
+            const pw = prompt('Password:');
+            if (pw === 'admib') {
+                this.toggleModal('settings-modal', true);
+            } else if (pw !== null) {
+                alert('Invalid password');
+            }
+        };
         document.getElementById('btn-settings-close').onclick = () => this.saveSettings();
         document.getElementById('btn-start-transfer').onclick = () => this.startTransfer();
         document.getElementById('btn-download-json').onclick = () => this.downloadJson();
