@@ -14,6 +14,13 @@ SPA로 Tidal 즐겨찾기를 계정 간 이전하거나 JSON으로 백업/복원
 3. 이 저장소(`tidal_backup_v2`) Import
 4. **Deploy** 클릭
 
+### OpenAPI 404 / Legacy 403 시 (선택)
+[developer.tidal.com](https://developer.tidal.com/dashboard)에서 앱 등록 후 **동시에** 환경 변수 설정:
+- `TIDAL_CLIENT_ID`: 발급된 Client ID
+- `TIDAL_CLIENT_SECRET`: 발급된 Client Secret  
+
+설정 후 **로그아웃 후 재로그인** 필요.
+
 ## 사용법
 1. Step 1: 소스 계정(백업할 계정) 연결
 2. Step 2: 타겟 계정(복원할 계정) 연결

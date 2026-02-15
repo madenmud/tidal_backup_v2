@@ -27,18 +27,16 @@ export default async function handler(req, res) {
         if (req.method === 'POST' && req.body) {
             const contentType = req.headers['content-type'] || '';
             headers['Content-Type'] = contentType || 'application/x-www-form-urlencoded';
-            let bodyObj = req.body;
-            if (typeof req.body === 'string') bodyObj = Object.fromEntries(new URLSearchParams(req.body));
+            let bodyObj = typeof req.body === 'string' ? Object.fromEntries(new URLSearchParams(req.body)) : { ...req.body };
             const isTokenExchange = decodedUrl.includes('auth.tidal.com') && decodedUrl.includes('oauth2/token') && bodyObj?.device_code;
-            if (isTokenExchange && process.env.TIDAL_CLIENT_SECRET) {
-                bodyObj = { ...bodyObj, client_secret: process.env.TIDAL_CLIENT_SECRET };
-                if (process.env.TIDAL_CLIENT_ID) bodyObj.client_id = process.env.TIDAL_CLIENT_ID;
+            const secret = process.env.TIDAL_CLIENT_SECRET;
+            const envClientId = process.env.TIDAL_CLIENT_ID;
+            if (isTokenExchange && secret && envClientId) {
+                bodyObj = { ...bodyObj, client_id: envClientId, client_secret: secret, scope: 'r_usr w_usr w_sub' };
             }
-            if (contentType.includes('application/x-www-form-urlencoded')) {
-                fetchBody = typeof bodyObj === 'string' ? bodyObj : new URLSearchParams(bodyObj).toString();
-            } else {
-                fetchBody = typeof bodyObj === 'object' ? JSON.stringify(bodyObj) : bodyObj;
-            }
+            fetchBody = contentType.includes('application/x-www-form-urlencoded')
+                ? new URLSearchParams(bodyObj).toString()
+                : (typeof bodyObj === 'object' ? JSON.stringify(bodyObj) : bodyObj);
         }
 
         const response = await fetch(decodedUrl, { method: req.method, headers, body: fetchBody });
