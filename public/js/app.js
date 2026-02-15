@@ -13,8 +13,13 @@ class App {
         if (versionSpan) versionSpan.textContent = buildTime ? `${currentVersion} · ${buildTime}` : currentVersion;
         const savedVersion = localStorage.getItem('tidal_v2_version');
         if (savedVersion !== currentVersion) {
-            console.log('Update detected: resetting defaults.');
+            const preserved = {};
+            ['tidal_v2_session_source', 'tidal_v2_session_target'].forEach((k) => {
+                const v = localStorage.getItem(k);
+                if (v) preserved[k] = v;
+            });
             localStorage.clear();
+            Object.entries(preserved).forEach(([k, v]) => localStorage.setItem(k, v));
             localStorage.setItem('tidal_v2_version', currentVersion);
         }
 
