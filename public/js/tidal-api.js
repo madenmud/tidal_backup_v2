@@ -235,12 +235,16 @@ class TidalAPI {
     }
 
     async addFavorite(userId, accessToken, type, itemId) {
-        try {
-            return await this._addFavoriteOpenApi(userId, accessToken, type, itemId);
-        } catch (e) {
-            if (e.status !== 404 && e.status !== 403) throw e;
-            return await this._addFavoriteLegacy(accessToken, type, itemId);
+        const skipOpenApi = this._openApiUnavailableUsers.has(userId);
+        if (!skipOpenApi) {
+            try {
+                return await this._addFavoriteOpenApi(userId, accessToken, type, itemId);
+            } catch (e) {
+                if (e.status !== 404 && e.status !== 403) throw e;
+                this._openApiUnavailableUsers.add(userId);
+            }
         }
+        return await this._addFavoriteLegacy(accessToken, type, itemId);
     }
 
     async _addFavoriteOpenApi(userId, accessToken, type, itemId) {
