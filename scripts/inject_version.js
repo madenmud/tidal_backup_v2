@@ -6,7 +6,7 @@ const path = require('path');
 
 const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
 const version = `v${pkg.version}`;
-const buildTime = new Date().toISOString().slice(0, 19).replace('T', ' ');
+const buildTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
 const cacheKey = Date.now().toString(36);
 
 const content = `/** Generated at build time. Do not edit. */
