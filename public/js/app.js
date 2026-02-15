@@ -234,7 +234,12 @@ class App {
         const logs = document.getElementById('log-container');
 
         section.classList.remove('hidden');
+        section.scrollIntoView({ behavior: 'smooth' });
         logs.innerHTML = '';
+        bar.style.width = '0%';
+        const percentEl = document.getElementById('progress-percent');
+        if (percentEl) percentEl.textContent = '0%';
+        status.textContent = this.t('initializing');
         const addLog = (msg) => {
             const div = document.createElement('div');
             div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
@@ -256,7 +261,9 @@ class App {
                 try {
                     await this.api.addFavorite(this.accounts.target.userId, this.accounts.target.tokens.access_token, type, extracted.id);
                     done++;
-                    bar.style.width = `${(done / total) * 100}%`;
+                    const pct = Math.round((done / total) * 100);
+                    bar.style.width = `${pct}%`;
+                    if (percentEl) percentEl.textContent = `${pct}%`;
                     status.textContent = `${this.t('moved')} ${extracted.name} (${done}/${total})`;
                 } catch (e) {
                     addLog(`${this.t('failed')} ${extracted.name}: ${e.message}`);
@@ -313,9 +320,13 @@ class App {
             const section = document.getElementById('progress-section');
             const bar = document.getElementById('progress-bar');
             const status = document.getElementById('progress-status');
+            const percentEl = document.getElementById('progress-percent');
             const logs = document.getElementById('log-container');
             section.classList.remove('hidden');
+            section.scrollIntoView({ behavior: 'smooth' });
             logs.innerHTML = '';
+            bar.style.width = '0%';
+            if (percentEl) percentEl.textContent = '0%';
 
             const addLog = (msg) => {
                 const div = document.createElement('div');
@@ -340,7 +351,9 @@ class App {
                     try {
                         await this.api.addFavorite(target.userId, target.tokens.access_token, type, id);
                         done++;
-                        bar.style.width = `${(done / total) * 100}%`;
+                        const pct = Math.round((done / total) * 100);
+                        bar.style.width = `${pct}%`;
+                        if (percentEl) percentEl.textContent = `${pct}%`;
                         status.textContent = `${this.t('added')} ${name} (${done}/${total})`;
                     } catch (e) {
                         addLog(`${this.t('failed')} ${name}: ${e.message}`);

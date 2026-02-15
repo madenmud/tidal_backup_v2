@@ -204,12 +204,25 @@ body {
     box-shadow: var(--shadow);
 }
 
+.progress-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
 .progress-bar-container {
+    flex: 1;
     height: 30px;
     border: var(--bw) solid var(--border);
     background: var(--bg);
-    margin-bottom: 1rem;
     overflow: hidden;
+}
+
+.progress-percent {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    min-width: 4ch;
 }
 
 .progress-bar {
