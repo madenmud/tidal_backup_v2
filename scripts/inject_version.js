@@ -18,6 +18,7 @@ fs.writeFileSync(path.join(__dirname, '../public/js/version.js'), content);
 const htmlPath = path.join(__dirname, '../public/index.html');
 let html = fs.readFileSync(htmlPath, 'utf8');
 html = html.replace(/__CACHE_KEY__/g, cacheKey);
+html = html.replace(/\?v=[a-z0-9]+/g, `?v=${cacheKey}`);
 fs.writeFileSync(htmlPath, html);
 
 console.log(`[build] Injected ${version} (${buildTime}) cache=${cacheKey}`);
