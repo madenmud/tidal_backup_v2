@@ -5,6 +5,7 @@ class TidalAPI {
     constructor(clientId) {
         this.clientId = clientId;
         this._legacyUnavailableTokens = new Set();
+        this._openApiUnavailableUsers = new Set();
         this.authBase = 'https://auth.tidal.com/v1';
         this.apiBase = 'https://openapi.tidal.com/v2';
         this.legacyApiBase = 'https://api.tidal.com/v1';
@@ -190,14 +191,20 @@ class TidalAPI {
     }
 
     async getFavorites(userId, accessToken, type) {
-        try {
-            return await this._getFavoritesOpenApi(userId, accessToken, type);
-        } catch (e) {
-            if (e.status !== 404 && e.status !== 403) throw e;
-            const legacy = await this._getFavoritesLegacy(userId, accessToken, type);
-            if (legacy) return legacy;
-            throw e;
+        const skipOpenApi = this._openApiUnavailableUsers.has(userId);
+        if (!skipOpenApi) {
+            try {
+                return await this._getFavoritesOpenApi(userId, accessToken, type);
+            } catch (e) {
+                if (e.status !== 404 && e.status !== 403) throw e;
+                this._openApiUnavailableUsers.add(userId);
+            }
         }
+        const legacy = await this._getFavoritesLegacy(userId, accessToken, type);
+        if (legacy) return legacy;
+        const err = new Error('HTTP 404');
+        err.status = 404;
+        throw err;
     }
 
     async _getFavoritesOpenApi(userId, accessToken, type) {
