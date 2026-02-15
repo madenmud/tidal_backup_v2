@@ -146,7 +146,7 @@ class TidalAPI {
         if (!data.items || !Array.isArray(data.items)) return [];
         return data.items.map((e) => {
             const it = e.item || e;
-            return { id: it.id, name: it.title || it.name, type: it.type };
+            return { id: it.id || it.uuid, name: it.title || it.name, type: it.type };
         });
     }
 
