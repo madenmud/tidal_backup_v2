@@ -223,7 +223,7 @@ class App {
 
     _extractItem(entry, type) {
         const item = entry.item || entry[type.slice(0, -1)] || entry.track || entry.artist || entry.album || entry.playlist || entry;
-        const id = item?.id ?? entry?.id ?? item?.uuid ?? entry?.uuid ?? item?.uuid;
+        const id = item?.id ?? entry?.id ?? item?.uuid ?? entry?.uuid;
         const name = item?.title ?? item?.name ?? entry?.title ?? entry?.name ?? String(id);
         return id ? { id, name } : null;
     }
@@ -262,14 +262,11 @@ class App {
         for (const type of types) {
             const items = this.accounts.source[type] || [];
             if (items.length > 0) {
-                addLog(`>>> ${this.t(type)} (${items.length}) <<<`);
+                addLog(`>>> ${this.t(type)} <<<`);
             }
             for (const entry of items) {
                 const extracted = this._extractItem(entry, type);
-                if (!extracted) {
-                    console.log('[Transfer] Could not extract item:', entry);
-                    continue;
-                }
+                if (!extracted) continue;
                 try {
                     await this.api.addFavorite(this.accounts.target.userId, this.accounts.target.tokens.access_token, type, extracted.id);
                     done++;
