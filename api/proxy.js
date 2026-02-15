@@ -27,12 +27,17 @@ export default async function handler(req, res) {
         if (req.method === 'POST' && req.body) {
             const contentType = req.headers['content-type'] || '';
             headers['Content-Type'] = contentType || 'application/x-www-form-urlencoded';
+            let bodyObj = req.body;
+            if (typeof req.body === 'string') bodyObj = Object.fromEntries(new URLSearchParams(req.body));
+            const isTokenExchange = decodedUrl.includes('auth.tidal.com') && decodedUrl.includes('oauth2/token') && bodyObj?.device_code;
+            if (isTokenExchange && process.env.TIDAL_CLIENT_SECRET) {
+                bodyObj = { ...bodyObj, client_secret: process.env.TIDAL_CLIENT_SECRET };
+                if (process.env.TIDAL_CLIENT_ID) bodyObj.client_id = process.env.TIDAL_CLIENT_ID;
+            }
             if (contentType.includes('application/x-www-form-urlencoded')) {
-                fetchBody = typeof req.body === 'string'
-                    ? req.body
-                    : new URLSearchParams(req.body).toString();
+                fetchBody = typeof bodyObj === 'string' ? bodyObj : new URLSearchParams(bodyObj).toString();
             } else {
-                fetchBody = typeof req.body === 'object' ? JSON.stringify(req.body) : req.body;
+                fetchBody = typeof bodyObj === 'object' ? JSON.stringify(bodyObj) : bodyObj;
             }
         }
 
