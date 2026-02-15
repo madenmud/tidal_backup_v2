@@ -289,10 +289,10 @@ class TidalAPI {
 
     async _addFavoritePlaylistLegacyV2(accessToken, session, playlistId) {
         const url = `${this.legacyApiV2Base}/my-collection/playlists/folders/add-favorites?sessionId=${encodeURIComponent(session.sessionId)}&countryCode=${session.countryCode}&folderId=root&uuids=${encodeURIComponent(String(playlistId))}`;
+        console.log(`[TidalAPI] Adding playlist favorite: ${playlistId}`);
         return this.fetchProxy(url, {
             method: 'PUT',
-            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' },
-            suppressLog: true
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
         });
     }
 }

@@ -28,7 +28,7 @@ export default async function handler(req, res) {
         if (req.headers.authorization) headers['Authorization'] = req.headers.authorization;
 
         let fetchBody = undefined;
-        if (req.method === 'POST' && req.body) {
+        if ((req.method === 'POST' || req.method === 'PUT') && req.body) {
             const contentType = req.headers['content-type'] || '';
             headers['Content-Type'] = contentType || 'application/x-www-form-urlencoded';
             let bodyObj = typeof req.body === 'string' ? Object.fromEntries(new URLSearchParams(req.body)) : { ...req.body };
