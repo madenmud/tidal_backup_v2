@@ -283,10 +283,12 @@ class App {
             }
         }
         addLog(this.t('done'));
-        status.textContent = this.t('transferComplete');
         if (failureLogs.length > 0) {
+            status.textContent = `${this.t('transferComplete')} (${this.t('failed')}: ${failureLogs.length})`;
             this.lastFailureReport = this._buildFailureReport('transfer', failureLogs);
             logActions?.classList.remove('hidden');
+        } else {
+            status.textContent = this.t('transferComplete');
         }
         await this.refreshStats('target');
     }

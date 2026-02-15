@@ -1,2 +1,2 @@
 /** Generated at build time. Do not edit. */
-window.__BUILD__ = { version: "v2.1.4", buildTime: "2026. 2. 15. 14시 48분 17초" };
+window.__BUILD__ = { version: "v2.1.4", buildTime: "2026. 2. 15. 14시 49분 16초" };

@@ -290,9 +290,15 @@ class TidalAPI {
     async _addFavoritePlaylistLegacyV2(accessToken, session, playlistId) {
         const url = `${this.legacyApiV2Base}/my-collection/playlists/folders/add-favorites?sessionId=${encodeURIComponent(session.sessionId)}&countryCode=${session.countryCode}&folderId=root&uuids=${encodeURIComponent(String(playlistId))}`;
         console.log(`[TidalAPI] Adding playlist favorite: ${playlistId}`);
+        // Many Tidal clients use PUT with both query params and a JSON body for robustness
         return this.fetchProxy(url, {
             method: 'PUT',
-            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+            headers: { 
+                'Authorization': `Bearer ${accessToken}`, 
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ uuids: [String(playlistId)], folderId: 'root' })
         });
     }
 }
