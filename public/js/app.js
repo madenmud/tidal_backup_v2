@@ -164,7 +164,7 @@ class App {
 
     async _doRefreshStats(type) {
         const account = this.accounts[type];
-        const types = ['tracks', 'artists', 'albums', 'playlists'];
+        const types = ['playlists', 'tracks', 'artists', 'albums'];
         const probe = await this._getFavoritesOrNull(account.userId, account.tokens.access_token, 'tracks');
         if (probe === null) {
             for (const t of types) {
@@ -175,9 +175,11 @@ class App {
             return;
         }
         account.tracks = probe;
-        const el0 = document.getElementById(`${type}-stat-tracks`);
-        if (el0) el0.textContent = probe.length;
-        for (const t of types.slice(1)) {
+        const elTrack = document.getElementById(`${type}-stat-tracks`);
+        if (elTrack) elTrack.textContent = probe.length;
+
+        for (const t of types) {
+            if (t === 'tracks') continue;
             try {
                 const items = await this.api.getFavorites(account.userId, account.tokens.access_token, t);
                 const el = document.getElementById(`${type}-stat-${t}`);
