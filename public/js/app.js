@@ -387,10 +387,12 @@ class App {
                 }
             }
             addLog(this.t('done'));
-            status.textContent = this.t('restoreComplete');
             if (failureLogs.length > 0) {
+                status.textContent = `${this.t('restoreComplete')} (${this.t('failed')}: ${failureLogs.length})`;
                 this.lastFailureReport = this._buildFailureReport('restore', failureLogs);
                 logActions?.classList.remove('hidden');
+            } else {
+                status.textContent = this.t('restoreComplete');
             }
             await this.refreshStats('target');
         } catch (e) {
