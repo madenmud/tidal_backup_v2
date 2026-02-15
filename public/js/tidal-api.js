@@ -4,6 +4,7 @@
 class TidalAPI {
     constructor(clientId) {
         this.clientId = clientId;
+        this._legacyUnavailableTokens = new Set();
         this.authBase = 'https://auth.tidal.com/v1';
         this.apiBase = 'https://openapi.tidal.com/v2';
         this.legacyApiBase = 'https://api.tidal.com/v1';
@@ -147,16 +148,24 @@ class TidalAPI {
     }
 
     async getLegacySession(accessToken) {
-        const url = `${this.legacyApiBase}/sessions?limit=1`;
-        const data = await this.fetchProxy(url, {
-            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' },
-            suppressLog: true
-        });
-        return {
-            sessionId: data.sessionId,
-            userId: String(data.userId || data.user_id),
-            countryCode: data.countryCode || 'US'
-        };
+        if (this._legacyUnavailableTokens.has(accessToken)) {
+            return { sessionId: null, userId: '', countryCode: 'US' };
+        }
+        try {
+            const url = `${this.legacyApiBase}/sessions?limit=1`;
+            const data = await this.fetchProxy(url, {
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' },
+                suppressLog: true
+            });
+            return {
+                sessionId: data.sessionId,
+                userId: String(data.userId || data.user_id),
+                countryCode: data.countryCode || 'US'
+            };
+        } catch (e) {
+            if (e.status === 403 || e.status === 404) this._legacyUnavailableTokens.add(accessToken);
+            return { sessionId: null, userId: '', countryCode: 'US' };
+        }
     }
 
     async getFavoritesLegacy(userId, accessToken, sessionId, countryCode, type) {
