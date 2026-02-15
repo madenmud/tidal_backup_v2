@@ -5,10 +5,12 @@ class TidalAPI {
     constructor(clientId) {
         this.clientId = clientId;
         this._legacyUnavailableTokens = new Set();
+        this._legacy404UserTypes = new Set();
         this._openApiUnavailableUsers = new Set();
         this.authBase = 'https://auth.tidal.com/v1';
         this.apiBase = 'https://openapi.tidal.com/v2';
         this.legacyApiBase = 'https://api.tidal.com/v1';
+        this.legacyApiV2Base = 'https://api.tidal.com/v2';
         this.proxyEndpoint = '/api/proxy?url=';
         this.apiHeaders = { 'Accept': 'application/vnd.tidal.v1+json' };
     }
@@ -170,22 +172,29 @@ class TidalAPI {
     }
 
     async getFavoritesLegacy(userId, accessToken, sessionId, countryCode, type) {
+        const key = `${userId}:${type}`;
+        if (this._legacy404UserTypes.has(key)) return [];
         const rel = this._itemType(type);
         let items = [];
         let offset = 0;
         const limit = 100;
         let hasMore = true;
-        while (hasMore) {
-            const url = `${this.legacyApiBase}/users/${userId}/favorites/${rel}?sessionId=${encodeURIComponent(sessionId)}&countryCode=${countryCode}&limit=${limit}&offset=${offset}`;
-            const data = await this.fetchProxy(url, {
-                headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' },
-                suppressLog: true
-            });
-            const batch = this._parseLegacyItems(data);
-            items = items.concat(batch);
-            const total = data.totalNumberOfItems ?? items.length;
-            offset += limit;
-            hasMore = offset < total && batch.length === limit;
+        try {
+            while (hasMore) {
+                const url = `${this.legacyApiBase}/users/${userId}/favorites/${rel}?sessionId=${encodeURIComponent(sessionId)}&countryCode=${countryCode}&limit=${limit}&offset=${offset}`;
+                const data = await this.fetchProxy(url, {
+                    headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' },
+                    suppressLog: true
+                });
+                const batch = this._parseLegacyItems(data);
+                items = items.concat(batch);
+                const total = data.totalNumberOfItems ?? items.length;
+                offset += limit;
+                hasMore = offset < total && batch.length === limit;
+            }
+        } catch (e) {
+            if (e.status === 404 || e.status === 403) this._legacy404UserTypes.add(key);
+            return [];
         }
         return items;
     }
@@ -261,6 +270,9 @@ class TidalAPI {
     async _addFavoriteLegacy(accessToken, type, itemId) {
         const session = await this.getLegacySession(accessToken);
         if (!session.sessionId) throw new Error('Legacy API session unavailable');
+        if (type === 'playlists') {
+            return this._addFavoritePlaylistLegacyV2(accessToken, session, itemId);
+        }
         const rel = this._itemType(type).slice(0, -1);
         const param = rel === 'track' ? 'trackId' : rel + 'Id';
         const url = `${this.legacyApiBase}/users/${session.userId}/favorites/${this._itemType(type)}?sessionId=${encodeURIComponent(session.sessionId)}&countryCode=${session.countryCode}`;
@@ -268,6 +280,15 @@ class TidalAPI {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
             body: new URLSearchParams({ [param]: String(itemId) })
+        });
+    }
+
+    async _addFavoritePlaylistLegacyV2(accessToken, session, playlistId) {
+        const url = `${this.legacyApiV2Base}/my-collection/playlists/folders/add-favorites?sessionId=${encodeURIComponent(session.sessionId)}&countryCode=${session.countryCode}&folderId=root&uuids=${encodeURIComponent(String(playlistId))}`;
+        return this.fetchProxy(url, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' },
+            suppressLog: true
         });
     }
 }

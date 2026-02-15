@@ -19,7 +19,7 @@ export default async function handler(req, res) {
         let decodedUrl = url;
         try { decodedUrl = decodeURIComponent(url); } catch (_) { /* already decoded */ }
         const isAuth = decodedUrl.includes('auth.tidal.com');
-        const isLegacyApi = decodedUrl.includes('api.tidal.com/v1');
+        const isLegacyApi = decodedUrl.includes('api.tidal.com/v1') || decodedUrl.includes('api.tidal.com/v2');
         const headers = {
             'Accept': isAuth ? '*/*' : (req.headers.accept || 'application/json'),
             'User-Agent': isLegacyApi ? 'Mozilla/5.0 (Linux; Android 12; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.114 Safari/537.36' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
