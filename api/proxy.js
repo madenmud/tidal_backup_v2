@@ -1,4 +1,8 @@
 // api/proxy.js - Private Proxy for Tidal API
+// Fallback credentials from tidalapi Config (EbbLabs/python-tidal) - used when env vars not set
+const TIDALAPI_CLIENT_ID = 'fX2JxdmntZWK0ixT';
+const TIDALAPI_CLIENT_SECRET = '1Nn9AfDAjxrgJFJbKNWLeAyKGVGmINuXPPLHVXAvxAg=';
+
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -29,10 +33,16 @@ export default async function handler(req, res) {
             headers['Content-Type'] = contentType || 'application/x-www-form-urlencoded';
             let bodyObj = typeof req.body === 'string' ? Object.fromEntries(new URLSearchParams(req.body)) : { ...req.body };
             const isTokenExchange = decodedUrl.includes('auth.tidal.com') && decodedUrl.includes('oauth2/token') && bodyObj?.device_code;
-            const secret = process.env.TIDAL_CLIENT_SECRET;
-            const envClientId = process.env.TIDAL_CLIENT_ID;
-            if (isTokenExchange && secret && envClientId) {
-                bodyObj = { ...bodyObj, client_id: envClientId, client_secret: secret, scope: 'r_usr w_usr w_sub' };
+            if (isTokenExchange) {
+                const envId = process.env.TIDAL_CLIENT_ID;
+                const envSecret = process.env.TIDAL_CLIENT_SECRET;
+                const reqClientId = bodyObj.client_id || '';
+                const useTidalapi = !envId && reqClientId === TIDALAPI_CLIENT_ID;
+                if (envId && envSecret) {
+                    bodyObj = { ...bodyObj, client_id: envId, client_secret: envSecret, scope: 'r_usr w_usr w_sub' };
+                } else if (useTidalapi) {
+                    bodyObj = { ...bodyObj, client_id: TIDALAPI_CLIENT_ID, client_secret: TIDALAPI_CLIENT_SECRET, scope: 'r_usr w_usr w_sub' };
+                }
             }
             fetchBody = contentType.includes('application/x-www-form-urlencoded')
                 ? new URLSearchParams(bodyObj).toString()
