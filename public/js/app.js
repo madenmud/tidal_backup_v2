@@ -164,9 +164,11 @@ class App {
 
     async _doRefreshStats(type) {
         const account = this.accounts[type];
-        const types = ['playlists', 'tracks', 'artists', 'albums'];
-        const probe = await this._getFavoritesOrNull(account.userId, account.tokens.access_token, 'tracks');
-        if (probe === null) {
+        const types = TRANSFER_TYPE_ORDER;
+        
+        // Use tracks as probe to verify token
+        const probeTracks = await this._getFavoritesOrNull(account.userId, account.tokens.access_token, 'tracks');
+        if (probeTracks === null) {
             for (const t of types) {
                 const el = document.getElementById(`${type}-stat-${t}`);
                 if (el) el.textContent = '—';
@@ -174,24 +176,22 @@ class App {
             }
             return;
         }
-        account.tracks = probe;
-        const elTrack = document.getElementById(`${type}-stat-tracks`);
-        if (elTrack) elTrack.textContent = probe.length;
 
+        // Sequential loading to ensure order and reliability
         for (const t of types) {
-            if (t === 'tracks') continue;
-            try {
-                const items = await this.api.getFavorites(account.userId, account.tokens.access_token, t);
-                const el = document.getElementById(`${type}-stat-${t}`);
-                if (el) el.textContent = items.length;
-                account[t] = items;
-            } catch (e) {
-                const msg = (e.message || '').toLowerCase();
-                if (!msg.includes('404') && !msg.includes('403') && e.status !== 404 && e.status !== 403) console.error(`Stat error (${t}):`, e);
-                const el = document.getElementById(`${type}-stat-${t}`);
-                if (el) el.textContent = '—';
-                account[t] = [];
+            if (t === 'tracks') {
+                account.tracks = probeTracks;
+            } else {
+                try {
+                    account[t] = await this.api.getFavorites(account.userId, account.tokens.access_token, t);
+                } catch (e) {
+                    const msg = (e.message || '').toLowerCase();
+                    if (!msg.includes('404') && !msg.includes('403')) console.error(`Stat error (${t}):`, e);
+                    account[t] = [];
+                }
             }
+            const el = document.getElementById(`${type}-stat-${t}`);
+            if (el) el.textContent = account[t] ? account[t].length : '—';
         }
     }
 
@@ -261,6 +261,9 @@ class App {
         addLog(this.t('transferringItems', { n: total }));
         for (const type of types) {
             const items = this.accounts.source[type] || [];
+            if (items.length > 0) {
+                addLog(`>>> ${this.t(type)} <<<`);
+            }
             for (const entry of items) {
                 const extracted = this._extractItem(entry, type);
                 if (!extracted) continue;
@@ -360,6 +363,9 @@ class App {
             addLog(this.t('restoringFromJson', { n: total }));
             for (const type of types) {
                 const items = data[type] || [];
+                if (items.length > 0) {
+                    addLog(`>>> ${this.t(type)} <<<`);
+                }
                 for (const entry of items) {
                     const id = entry.id ?? entry.item?.id;
                     const name = entry.name ?? entry.title ?? String(id);
