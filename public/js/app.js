@@ -1,6 +1,8 @@
 /**
  * Tidal Backup V2 - App Logic (Vercel Edition)
  */
+const TRANSFER_TYPE_ORDER = ['playlists', 'tracks', 'albums', 'artists'];
+
 class App {
     constructor() {
         this.accounts = { source: null, target: null };
@@ -225,8 +227,7 @@ class App {
     }
 
     async startTransfer() {
-        const typeOrder = ['playlists', 'tracks', 'albums', 'artists'];
-        const types = typeOrder.filter((t) => document.getElementById(`check-${t}`)?.checked);
+        const types = TRANSFER_TYPE_ORDER.filter((t) => document.getElementById(`check-${t}`)?.checked);
 
         const section = document.getElementById('progress-section');
         const bar = document.getElementById('progress-bar');
@@ -348,7 +349,7 @@ class App {
                 logs.scrollTop = logs.scrollHeight;
             };
 
-            const types = ['playlists', 'tracks', 'albums', 'artists'];
+            const types = TRANSFER_TYPE_ORDER;
             let total = 0;
             types.forEach(t => { total += (data[t] || []).length; });
             if (total === 0) { addLog(this.t('noItemsInFile')); event.target.value = ''; return; }
