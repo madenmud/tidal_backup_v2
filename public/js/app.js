@@ -32,6 +32,8 @@ class App {
         document.getElementById('btn-target-login').onclick = () => this.login('target');
         document.getElementById('btn-source-logout').onclick = () => this.logout('source');
         document.getElementById('btn-target-logout').onclick = () => this.logout('target');
+        document.getElementById('btn-source-refresh').onclick = () => this.refreshStats('source');
+        document.getElementById('btn-target-refresh').onclick = () => this.refreshStats('target');
         document.getElementById('btn-settings').onclick = () => this.toggleModal('settings-modal', true);
         document.getElementById('btn-settings-close').onclick = () => this.saveSettings();
         document.getElementById('btn-start-transfer').onclick = () => this.startTransfer();
@@ -139,6 +141,18 @@ class App {
     }
 
     async refreshStats(type) {
+        const account = this.accounts[type];
+        if (!account) return;
+        const refreshBtn = document.getElementById(`btn-${type}-refresh`);
+        if (refreshBtn) refreshBtn.disabled = true;
+        try {
+            await this._doRefreshStats(type);
+        } finally {
+            if (refreshBtn) refreshBtn.disabled = false;
+        }
+    }
+
+    async _doRefreshStats(type) {
         const account = this.accounts[type];
         const types = ['tracks', 'artists', 'albums', 'playlists'];
         const probe = await this._getFavoritesOrNull(account.userId, account.tokens.access_token, 'tracks');
