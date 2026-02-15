@@ -5,6 +5,7 @@ const I18n = {
     lang: 'ko',
     strings: {
         ko: {
+            appTitle: 'Tidal Backup V2 🤖',
             step1Title: '1단계: 소스 (백업)',
             step2Title: '2단계: 타겟 (복원)',
             sourceDesc: '즐겨찾기를 가져올 계정을 연결하세요.',
@@ -56,6 +57,7 @@ const I18n = {
             invalidJson: '잘못된 JSON'
         },
         en: {
+            appTitle: 'Tidal Backup V2 🤖',
             step1Title: 'Step 1: Source (Backup)',
             step2Title: 'Step 2: Target (Restore)',
             sourceDesc: 'Connect the account you want to copy FROM.',
@@ -139,5 +141,6 @@ const I18n = {
         document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
             el.placeholder = this.t(el.getAttribute('data-i18n-placeholder'));
         });
+        document.title = this.t('appTitle');
     }
 };

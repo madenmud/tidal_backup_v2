@@ -7,7 +7,7 @@ class App {
         I18n.init();
         I18n.apply();
 
-        const currentVersion = (window.__BUILD__?.version) || 'v2.2.1';
+        const currentVersion = (window.__BUILD__?.version) || 'v0.1.0';
         const buildTime = window.__BUILD__?.buildTime || '';
         const versionSpan = document.getElementById('build-version');
         if (versionSpan) versionSpan.textContent = buildTime ? `${currentVersion} · ${buildTime}` : currentVersion;
