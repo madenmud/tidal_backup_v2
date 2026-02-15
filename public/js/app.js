@@ -225,11 +225,8 @@ class App {
     }
 
     async startTransfer() {
-        const types = [];
-        if (document.getElementById('check-tracks').checked) types.push('tracks');
-        if (document.getElementById('check-artists').checked) types.push('artists');
-        if (document.getElementById('check-albums').checked) types.push('albums');
-        if (document.getElementById('check-playlists')?.checked) types.push('playlists');
+        const typeOrder = ['playlists', 'tracks', 'albums', 'artists'];
+        const types = typeOrder.filter((t) => document.getElementById(`check-${t}`)?.checked);
 
         const section = document.getElementById('progress-section');
         const bar = document.getElementById('progress-bar');
