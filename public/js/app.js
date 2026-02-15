@@ -133,7 +133,8 @@ class App {
             this.checkReadiness();
         } catch (e) {
             console.error(e);
-            if (e.message.includes('401') || e.message.includes('403')) this.logout(type);
+            const msg = (e.message || '').toLowerCase();
+            if (e.status === 401 || e.status === 403 || msg.includes('401') || msg.includes('403') || msg.includes('expired token')) this.logout(type);
         }
     }
 
