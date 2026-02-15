@@ -173,6 +173,7 @@ class App {
             return await this.api.getFavorites(userId, accessToken, itemType);
         } catch (e) {
             const msg = (e.message || '').toLowerCase();
+            if (e.status === 401 || msg.includes('401') || msg.includes('expired token')) throw e;
             const restricted = (e.status === 404 || e.status === 403) || msg.includes('404') || msg.includes('403');
             if (!restricted) console.error(`Stat error (${itemType}):`, e);
             return null;
