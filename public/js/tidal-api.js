@@ -6,6 +6,7 @@ class TidalAPI {
         this.clientId = clientId;
         this.authBase = 'https://auth.tidal.com/v1';
         this.apiBase = 'https://openapi.tidal.com/v2';
+        this.legacyApiBase = 'https://api.tidal.com/v1';
         this.proxyEndpoint = '/api/proxy?url=';
         this.apiHeaders = { 'Accept': 'application/vnd.tidal.v1+json' };
     }
@@ -134,7 +135,60 @@ class TidalAPI {
         return [];
     }
 
+    _parseLegacyItems(data) {
+        if (!data.items || !Array.isArray(data.items)) return [];
+        return data.items.map((e) => {
+            const it = e.item || e;
+            return { id: it.id, name: it.title || it.name, type: it.type };
+        });
+    }
+
+    async getLegacySession(accessToken) {
+        const url = `${this.legacyApiBase}/sessions?limit=1`;
+        const data = await this.fetchProxy(url, {
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' },
+            suppressLog: true
+        });
+        return {
+            sessionId: data.sessionId,
+            userId: String(data.userId || data.user_id),
+            countryCode: data.countryCode || 'US'
+        };
+    }
+
+    async getFavoritesLegacy(userId, accessToken, sessionId, countryCode, type) {
+        const rel = this._itemType(type);
+        let items = [];
+        let offset = 0;
+        const limit = 100;
+        let hasMore = true;
+        while (hasMore) {
+            const url = `${this.legacyApiBase}/users/${userId}/favorites/${rel}?sessionId=${encodeURIComponent(sessionId)}&countryCode=${countryCode}&limit=${limit}&offset=${offset}`;
+            const data = await this.fetchProxy(url, {
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' },
+                suppressLog: true
+            });
+            const batch = this._parseLegacyItems(data);
+            items = items.concat(batch);
+            const total = data.totalNumberOfItems ?? items.length;
+            offset += limit;
+            hasMore = offset < total && batch.length === limit;
+        }
+        return items;
+    }
+
     async getFavorites(userId, accessToken, type) {
+        try {
+            return await this._getFavoritesOpenApi(userId, accessToken, type);
+        } catch (e) {
+            if (e.status !== 404 && e.status !== 403) throw e;
+            const legacy = await this._getFavoritesLegacy(userId, accessToken, type);
+            if (legacy) return legacy;
+            throw e;
+        }
+    }
+
+    async _getFavoritesOpenApi(userId, accessToken, type) {
         const collectionType = this._collectionType(type);
         let items = [];
         let cursor = null;
@@ -151,7 +205,26 @@ class TidalAPI {
         return items;
     }
 
+    async _getFavoritesLegacy(userId, accessToken, type) {
+        try {
+            const session = await this.getLegacySession(accessToken);
+            if (!session.sessionId) return null;
+            return await this.getFavoritesLegacy(userId, accessToken, session.sessionId, session.countryCode, type);
+        } catch (e) {
+            return null;
+        }
+    }
+
     async addFavorite(userId, accessToken, type, itemId) {
+        try {
+            return await this._addFavoriteOpenApi(userId, accessToken, type, itemId);
+        } catch (e) {
+            if (e.status !== 404 && e.status !== 403) throw e;
+            return await this._addFavoriteLegacy(accessToken, type, itemId);
+        }
+    }
+
+    async _addFavoriteOpenApi(userId, accessToken, type, itemId) {
         const collectionType = this._collectionType(type);
         const itemType = this._itemType(type);
         const payload = { data: [{ type: itemType, id: String(itemId) }] };
@@ -159,6 +232,19 @@ class TidalAPI {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/vnd.api+json', 'Accept': 'application/vnd.api+json' },
             body: JSON.stringify(payload)
+        });
+    }
+
+    async _addFavoriteLegacy(accessToken, type, itemId) {
+        const session = await this.getLegacySession(accessToken);
+        if (!session.sessionId) throw new Error('Legacy API session unavailable');
+        const rel = this._itemType(type).slice(0, -1);
+        const param = rel === 'track' ? 'trackId' : rel + 'Id';
+        const url = `${this.legacyApiBase}/users/${session.userId}/favorites/${this._itemType(type)}?sessionId=${encodeURIComponent(session.sessionId)}&countryCode=${session.countryCode}`;
+        return this.fetchProxy(url, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+            body: new URLSearchParams({ [param]: String(itemId) })
         });
     }
 }
