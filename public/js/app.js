@@ -6,6 +6,7 @@ const TRANSFER_TYPE_ORDER = ['playlists', 'tracks', 'albums', 'artists'];
 class App {
     constructor() {
         this.accounts = { source: null, target: null };
+        this.targetService = 'tidal';
         I18n.init();
         I18n.apply();
 
@@ -16,7 +17,7 @@ class App {
         const savedVersion = localStorage.getItem('tidal_v2_version');
         if (savedVersion !== currentVersion) {
             const preserved = {};
-            ['tidal_v2_session_source', 'tidal_v2_session_target'].forEach((k) => {
+            ['tidal_v2_session_source', 'tidal_v2_session_target', 'qobuz_v2_session_target'].forEach((k) => {
                 const v = localStorage.getItem(k);
                 if (v) preserved[k] = v;
             });
@@ -27,6 +28,7 @@ class App {
 
         this.clientId = localStorage.getItem('tidal_v2_client_id') || 'fX2JxdmntZWK0ixT';
         this.api = new TidalAPI(this.clientId);
+        this.qobuzApi = new QobuzAPI();
 
         this.initUI();
         this.loadSessions();
@@ -41,6 +43,15 @@ class App {
         document.getElementById('btn-target-logout').onclick = () => this.logout('target');
         document.getElementById('btn-source-refresh').onclick = () => this.refreshStats('source');
         document.getElementById('btn-target-refresh').onclick = () => this.refreshStats('target');
+        
+        // Target Service Selector
+        document.querySelectorAll('input[name="target-service"]').forEach(radio => {
+            radio.onchange = (e) => this.switchTargetService(e.target.value);
+        });
+
+        // Qobuz Login
+        document.getElementById('btn-qobuz-login').onclick = () => this.qobuzLogin();
+
         document.getElementById('btn-settings').onclick = () => {
             const pw = prompt('Password:');
             if (pw === 'admib') {
@@ -83,11 +94,77 @@ class App {
         this.toggleModal('settings-modal', false);
     }
 
+    switchTargetService(service) {
+        this.targetService = service;
+        const isTidal = service === 'tidal';
+        document.getElementById('target-tidal-container').classList.toggle('hidden', !isTidal);
+        document.getElementById('target-qobuz-container').classList.toggle('hidden', isTidal);
+        
+        // If switched and already logged in, update profile view
+        if (this.accounts.target) {
+            const currentService = this.accounts.target.service || 'tidal';
+            if (currentService !== service) {
+                document.getElementById('target-profile').classList.add('hidden');
+                document.getElementById(isTidal ? 'target-auth' : 'target-qobuz-container').classList.remove('hidden');
+            } else {
+                document.getElementById('target-profile').classList.remove('hidden');
+                document.getElementById('target-tidal-container').classList.add('hidden');
+                document.getElementById('target-qobuz-container').classList.add('hidden');
+            }
+        }
+    }
+
+    async qobuzLogin() {
+        const email = document.getElementById('qobuz-email').value;
+        const password = document.getElementById('qobuz-password').value;
+        if (!email || !password) return alert(this.t('qobuzLoginDesc'));
+
+        const btn = document.getElementById('btn-qobuz-login');
+        btn.disabled = true;
+        try {
+            const session = await this.qobuzApi.login(email, password);
+            this.handleQobuzAuthSuccess(session);
+        } catch (e) {
+            alert(`${this.t('loginFailed')}: ${e.message}`);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    async handleQobuzAuthSuccess(session) {
+        localStorage.setItem('qobuz_v2_session_target', JSON.stringify(session));
+        this.accounts.target = { 
+            service: 'qobuz',
+            tokens: { access_token: session.userAuthToken }, 
+            userId: session.userId,
+            userName: session.userName
+        };
+        
+        document.getElementById('target-qobuz-container').classList.add('hidden');
+        document.getElementById('target-profile').classList.remove('hidden');
+        document.getElementById('target-username').textContent = `Qobuz: ${session.userName}`;
+        
+        await this.refreshStats('target');
+        this.checkReadiness();
+    }
+
     async loadSessions() {
         const sSource = localStorage.getItem('tidal_v2_session_source');
-        const sTarget = localStorage.getItem('tidal_v2_session_target');
         if (sSource) await this.handleAuthSuccess('source', JSON.parse(sSource));
-        if (sTarget) await this.handleAuthSuccess('target', JSON.parse(sTarget));
+
+        // Try Tidal Target first
+        const sTargetTidal = localStorage.getItem('tidal_v2_session_target');
+        if (sTargetTidal) {
+            await this.handleAuthSuccess('target', JSON.parse(sTargetTidal));
+        } else {
+            // Try Qobuz Target
+            const sTargetQobuz = localStorage.getItem('qobuz_v2_session_target');
+            if (sTargetQobuz) {
+                this.switchTargetService('qobuz');
+                document.querySelector('input[name="target-service"][value="qobuz"]').checked = true;
+                this.handleQobuzAuthSuccess(JSON.parse(sTargetQobuz));
+            }
+        }
     }
 
     async login(type) {
@@ -171,31 +248,18 @@ class App {
 
     async _doRefreshStats(type) {
         const account = this.accounts[type];
+        const service = account.service || 'tidal';
+        const api = service === 'tidal' ? this.api : this.qobuzApi;
         const types = TRANSFER_TYPE_ORDER;
         
-        // Use tracks as probe to verify token
-        const probeTracks = await this._getFavoritesOrNull(account.userId, account.tokens.access_token, 'tracks');
-        if (probeTracks === null) {
-            for (const t of types) {
-                const el = document.getElementById(`${type}-stat-${t}`);
-                if (el) el.textContent = '—';
-                account[t] = [];
-            }
-            return;
-        }
-
-        // Sequential loading to ensure order and reliability
+        // Sequential loading
         for (const t of types) {
-            if (t === 'tracks') {
-                account.tracks = probeTracks;
-            } else {
-                try {
-                    account[t] = await this.api.getFavorites(account.userId, account.tokens.access_token, t);
-                } catch (e) {
-                    const msg = (e.message || '').toLowerCase();
-                    if (!msg.includes('404') && !msg.includes('403')) console.error(`Stat error (${t}):`, e);
-                    account[t] = [];
-                }
+            try {
+                account[t] = await api.getFavorites(account.userId, account.tokens.access_token, t);
+            } catch (e) {
+                const msg = (e.message || '').toLowerCase();
+                if (!msg.includes('404') && !msg.includes('403')) console.error(`Stat error (${t}):`, e);
+                account[t] = [];
             }
             const el = document.getElementById(`${type}-stat-${t}`);
             if (el) el.textContent = account[t] ? account[t].length : '—';
@@ -216,9 +280,16 @@ class App {
 
     logout(type) {
         localStorage.removeItem(`tidal_v2_session_${type}`);
+        if (type === 'target') localStorage.removeItem('qobuz_v2_session_target');
+        
         this.accounts[type] = null;
         document.getElementById(`btn-${type}-login`).classList.remove('hidden');
         document.getElementById(`${type}-profile`).classList.add('hidden');
+        
+        if (type === 'target') {
+            this.switchTargetService(this.targetService);
+        }
+        
         this.checkReadiness();
     }
 
@@ -237,6 +308,8 @@ class App {
 
     async startTransfer() {
         const types = TRANSFER_TYPE_ORDER.filter((t) => document.getElementById(`check-${t}`)?.checked);
+        const targetAccount = this.accounts.target;
+        const targetService = targetAccount.service || 'tidal';
 
         const section = document.getElementById('progress-section');
         const bar = document.getElementById('progress-bar');
@@ -275,7 +348,11 @@ class App {
                 const extracted = this._extractItem(entry, type);
                 if (!extracted) continue;
                 try {
-                    await this.api.addFavorite(this.accounts.target.userId, this.accounts.target.tokens.access_token, type, extracted.id);
+                    if (targetService === 'qobuz') {
+                        await this._matchAndAddQobuz(targetAccount, type, extracted, addLog);
+                    } else {
+                        await this.api.addFavorite(targetAccount.userId, targetAccount.tokens.access_token, type, extracted.id);
+                    }
                     done++;
                     const pct = Math.round((done / total) * 100);
                     bar.style.width = `${pct}%`;
@@ -286,7 +363,7 @@ class App {
                     addLog(msg);
                     failureLogs.push({ op: 'transfer', type, name: extracted.name, id: extracted.id, error: e.message });
                 }
-                await new Promise(r => setTimeout(r, 200));
+                await new Promise(r => setTimeout(r, targetService === 'qobuz' ? 500 : 200));
             }
         }
         addLog(this.t('done'));
@@ -298,6 +375,27 @@ class App {
             status.textContent = this.t('transferComplete');
         }
         await this.refreshStats('target');
+    }
+
+    async _matchAndAddQobuz(targetAccount, type, item, addLog) {
+        if (type === 'playlists') {
+            throw new Error('Playlist transfer to Qobuz not yet implemented');
+        }
+
+        // 1. Search
+        addLog(this.t('searchingFor', { name: item.name }));
+        const results = await this.qobuzApi.search(item.name, type);
+        
+        if (results.length === 0) {
+            throw new Error(this.t('noMatch'));
+        }
+
+        // 2. Simple match (first result for now)
+        const bestMatch = results[0];
+        addLog(`${this.t('matchFound')}: ${bestMatch.title || bestMatch.name}`);
+
+        // 3. Add to favorites
+        await this.qobuzApi.addFavorite(targetAccount.userId, targetAccount.tokens.access_token, type, bestMatch.id);
     }
 
     downloadJson() {

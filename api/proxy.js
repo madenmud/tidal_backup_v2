@@ -6,7 +6,7 @@ const TIDALAPI_CLIENT_SECRET = '1Nn9AfDAjxrgJFJbKNWLeAyKGVGmINuXPPLHVXAvxAg=';
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-user-auth-token');
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -20,12 +20,15 @@ export default async function handler(req, res) {
         try { decodedUrl = decodeURIComponent(url); } catch (_) { /* already decoded */ }
         const isAuth = decodedUrl.includes('auth.tidal.com');
         const isLegacyApi = decodedUrl.includes('api.tidal.com/v1') || decodedUrl.includes('api.tidal.com/v2');
+        const isQobuz = decodedUrl.includes('qobuz.com');
+        
         const headers = {
             'Accept': isAuth ? '*/*' : (req.headers.accept || 'application/json'),
-            'User-Agent': isLegacyApi ? 'Mozilla/5.0 (Linux; Android 12; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.114 Safari/537.36' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            'User-Agent': (isLegacyApi || isQobuz) ? 'Mozilla/5.0 (Linux; Android 12; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.114 Safari/537.36' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         };
         if (isLegacyApi) headers['x-tidal-client-version'] = '2025.7.16';
         if (req.headers.authorization) headers['Authorization'] = req.headers.authorization;
+        if (req.headers['x-user-auth-token']) headers['x-user-auth-token'] = req.headers['x-user-auth-token'];
 
         let fetchBody = undefined;
         if ((req.method === 'POST' || req.method === 'PUT') && req.body) {

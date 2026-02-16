@@ -82,15 +82,38 @@
             <!-- Target Panel -->
             <section class="panel target-panel">
                 <h2 class="section-title" data-i18n="step2Title">Step 2: Target (Restore)</h2>
-                <div id="target-auth" class="auth-container">
-                    <p class="desc" data-i18n="targetDesc">Connect the account you want to copy TO.</p>
-                    <button id="btn-target-login" class="btn btn-primary" data-i18n="connectAccountB">Connect Account B</button>
-                    <div id="target-device-flow" class="device-flow hidden">
-                        <div class="user-code" id="target-user-code">---- ----</div>
-                        <p class="timer"><span data-i18n="waiting">Waiting...</span> <span id="target-timer">300</span>s</p>
-                        <button id="btn-target-popup" class="btn btn-sm" data-i18n="openTidalLogin">Open Tidal Login</button>
+                
+                <!-- Service Selector -->
+                <div class="service-selector">
+                    <label class="radio-label"><input type="radio" name="target-service" value="tidal" checked> Tidal</label>
+                    <label class="radio-label"><input type="radio" name="target-service" value="qobuz"> Qobuz</label>
+                </div>
+
+                <!-- Tidal Target Auth -->
+                <div id="target-tidal-container">
+                    <div id="target-auth" class="auth-container">
+                        <p class="desc" data-i18n="targetDesc">Connect the account you want to copy TO.</p>
+                        <button id="btn-target-login" class="btn btn-primary" data-i18n="connectAccountB">Connect Account B</button>
+                        <div id="target-device-flow" class="device-flow hidden">
+                            <div class="user-code" id="target-user-code">---- ----</div>
+                            <p class="timer"><span data-i18n="waiting">Waiting...</span> <span id="target-timer">300</span>s</p>
+                            <button id="btn-target-popup" class="btn btn-sm" data-i18n="openTidalLogin">Open Tidal Login</button>
+                        </div>
                     </div>
                 </div>
+
+                <!-- Qobuz Target Auth -->
+                <div id="target-qobuz-container" class="hidden">
+                    <div class="auth-container">
+                        <p class="desc" data-i18n="qobuzLoginDesc">Enter your Qobuz email and password.</p>
+                        <div class="login-form">
+                            <input type="email" id="qobuz-email" class="input" data-i18n-placeholder="email">
+                            <input type="password" id="qobuz-password" class="input" data-i18n-placeholder="password">
+                            <button id="btn-qobuz-login" class="btn btn-primary" data-i18n="login">Login</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="target-profile" class="profile-container hidden">
                     <div class="profile-header">
                         <span class="username" id="target-username">Connected</span>
@@ -155,10 +178,11 @@
         </div>
     </div>
 
-    <script src="js/version.js?v=mlogeepx"></script>
-    <script src="js/i18n.js?v=mlogeepx"></script>
-    <script src="js/tidal-api.js?v=mlogeepx"></script>
-    <script src="js/app.js?v=mlogeepx"></script>
+    <script src="js/version.js?v=mlolydtd"></script>
+    <script src="js/i18n.js?v=mlolydtd"></script>
+    <script src="js/tidal-api.js?v=mlolydtd"></script>
+    <script src="js/qobuz-api.js?v=mlolydtd"></script>
+    <script src="js/app.js?v=mlolydtd"></script>
     
     <!-- Vercel Speed Insights -->
     <script>
