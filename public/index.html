@@ -87,6 +87,7 @@
                 <div class="service-selector">
                     <label class="radio-label"><input type="radio" name="target-service" value="tidal" checked> Tidal</label>
                     <label class="radio-label"><input type="radio" name="target-service" value="qobuz"> Qobuz</label>
+                    <label class="radio-label"><input type="radio" name="target-service" value="spotify"> Spotify</label>
                 </div>
 
                 <!-- Tidal Target Auth -->
@@ -111,6 +112,14 @@
                             <input type="password" id="qobuz-password" class="input" data-i18n-placeholder="password">
                             <button id="btn-qobuz-login" class="btn btn-primary" data-i18n="login">Login</button>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Spotify Target Auth -->
+                <div id="target-spotify-container" class="hidden">
+                    <div class="auth-container">
+                        <p class="desc" data-i18n="spotifyLoginDesc">Connect your Spotify account.</p>
+                        <button id="btn-spotify-login" class="btn btn-primary" data-i18n="connectSpotify">Connect Spotify</button>
                     </div>
                 </div>
 
@@ -178,11 +187,12 @@
         </div>
     </div>
 
-    <script src="js/version.js?v=mlolydtd"></script>
-    <script src="js/i18n.js?v=mlolydtd"></script>
-    <script src="js/tidal-api.js?v=mlolydtd"></script>
-    <script src="js/qobuz-api.js?v=mlolydtd"></script>
-    <script src="js/app.js?v=mlolydtd"></script>
+    <script src="js/version.js?v=mlr1htqx"></script>
+    <script src="js/i18n.js?v=mlr1htqx"></script>
+    <script src="js/tidal-api.js?v=mlr1htqx"></script>
+    <script src="js/qobuz-api.js?v=mlr1htqx"></script>
+    <script src="js/spotify-api.js?v=mlr1htqx"></script>
+    <script src="js/app.js?v=mlr1htqx"></script>
     
     <!-- Vercel Speed Insights -->
     <script>

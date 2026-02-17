@@ -29,6 +29,7 @@ class App {
         this.clientId = localStorage.getItem('tidal_v2_client_id') || 'fX2JxdmntZWK0ixT';
         this.api = new TidalAPI(this.clientId);
         this.qobuzApi = new QobuzAPI();
+        this.spotifyApi = new SpotifyAPI();
 
         this.initUI();
         this.loadSessions();
@@ -51,6 +52,9 @@ class App {
 
         // Qobuz Login
         document.getElementById('btn-qobuz-login').onclick = () => this.qobuzLogin();
+
+        // Spotify Login
+        document.getElementById('btn-spotify-login').onclick = () => this.spotifyLogin();
 
         document.getElementById('btn-settings').onclick = () => {
             const pw = prompt('Password:');
@@ -96,21 +100,49 @@ class App {
 
     switchTargetService(service) {
         this.targetService = service;
-        const isTidal = service === 'tidal';
-        document.getElementById('target-tidal-container').classList.toggle('hidden', !isTidal);
-        document.getElementById('target-qobuz-container').classList.toggle('hidden', isTidal);
+        const targetTidal = document.getElementById('target-tidal-container');
+        const targetQobuz = document.getElementById('target-qobuz-container');
+        const targetSpotify = document.getElementById('target-spotify-container');
+        const targetProfile = document.getElementById('target-profile');
+
+        // Hide everything first
+        [targetTidal, targetQobuz, targetSpotify, targetProfile].forEach(el => el.classList.add('hidden'));
         
-        // If switched and already logged in, update profile view
-        if (this.accounts.target) {
-            const currentService = this.accounts.target.service || 'tidal';
-            if (currentService !== service) {
-                document.getElementById('target-profile').classList.add('hidden');
-                document.getElementById(isTidal ? 'target-auth' : 'target-qobuz-container').classList.remove('hidden');
-            } else {
-                document.getElementById('target-profile').classList.remove('hidden');
-                document.getElementById('target-tidal-container').classList.add('hidden');
-                document.getElementById('target-qobuz-container').classList.add('hidden');
-            }
+        // Show the appropriate container
+        if (this.accounts.target && (this.accounts.target.service || 'tidal') === service) {
+            targetProfile.classList.remove('hidden');
+        } else {
+            if (service === 'tidal') targetTidal.classList.remove('hidden');
+            else if (service === 'qobuz') targetQobuz.classList.remove('hidden');
+            else if (service === 'spotify') targetSpotify.classList.remove('hidden');
+        }
+    }
+
+    spotifyLogin() {
+        const url = this.spotifyApi.getAuthUrl();
+        window.location.href = url;
+    }
+
+    async handleSpotifyAuthSuccess(token) {
+        localStorage.setItem('spotify_v2_session_target', token);
+        try {
+            const user = await this.spotifyApi.getUser(token);
+            this.accounts.target = { 
+                service: 'spotify',
+                tokens: { access_token: token }, 
+                userId: user.id,
+                userName: user.display_name
+            };
+            
+            document.getElementById('target-spotify-container').classList.add('hidden');
+            document.getElementById('target-profile').classList.remove('hidden');
+            document.getElementById('target-username').textContent = `Spotify: ${user.display_name}`;
+            
+            await this.refreshStats('target');
+            this.checkReadiness();
+        } catch (e) {
+            alert(`${this.t('loginFailed')}: ${e.message}`);
+            this.logout('target');
         }
     }
 
@@ -152,6 +184,18 @@ class App {
         const sSource = localStorage.getItem('tidal_v2_session_source');
         if (sSource) await this.handleAuthSuccess('source', JSON.parse(sSource));
 
+        // Check for Spotify token in hash (after redirect)
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const spotifyToken = params.get('access_token');
+        if (spotifyToken) {
+            window.location.hash = '';
+            this.switchTargetService('spotify');
+            document.querySelector('input[name="target-service"][value="spotify"]').checked = true;
+            await this.handleSpotifyAuthSuccess(spotifyToken);
+            return;
+        }
+
         // Try Tidal Target first
         const sTargetTidal = localStorage.getItem('tidal_v2_session_target');
         if (sTargetTidal) {
@@ -163,6 +207,14 @@ class App {
                 this.switchTargetService('qobuz');
                 document.querySelector('input[name="target-service"][value="qobuz"]').checked = true;
                 this.handleQobuzAuthSuccess(JSON.parse(sTargetQobuz));
+            } else {
+                // Try Spotify Target
+                const sTargetSpotify = localStorage.getItem('spotify_v2_session_target');
+                if (sTargetSpotify) {
+                    this.switchTargetService('spotify');
+                    document.querySelector('input[name="target-service"][value="spotify"]').checked = true;
+                    await this.handleSpotifyAuthSuccess(sTargetSpotify);
+                }
             }
         }
     }
@@ -249,13 +301,17 @@ class App {
     async _doRefreshStats(type) {
         const account = this.accounts[type];
         const service = account.service || 'tidal';
-        const api = service === 'tidal' ? this.api : this.qobuzApi;
+        const api = service === 'tidal' ? this.api : (service === 'qobuz' ? this.qobuzApi : this.spotifyApi);
         const types = TRANSFER_TYPE_ORDER;
         
         // Sequential loading
         for (const t of types) {
             try {
-                account[t] = await api.getFavorites(account.userId, account.tokens.access_token, t);
+                if (service === 'spotify') {
+                    account[t] = await this.spotifyApi.getFavorites(account.tokens.access_token, t);
+                } else {
+                    account[t] = await api.getFavorites(account.userId, account.tokens.access_token, t);
+                }
             } catch (e) {
                 const msg = (e.message || '').toLowerCase();
                 if (!msg.includes('404') && !msg.includes('403')) console.error(`Stat error (${t}):`, e);
@@ -280,7 +336,10 @@ class App {
 
     logout(type) {
         localStorage.removeItem(`tidal_v2_session_${type}`);
-        if (type === 'target') localStorage.removeItem('qobuz_v2_session_target');
+        if (type === 'target') {
+            localStorage.removeItem('qobuz_v2_session_target');
+            localStorage.removeItem('spotify_v2_session_target');
+        }
         
         this.accounts[type] = null;
         document.getElementById(`btn-${type}-login`).classList.remove('hidden');
@@ -350,6 +409,8 @@ class App {
                 try {
                     if (targetService === 'qobuz') {
                         await this._matchAndAddQobuz(targetAccount, type, extracted, addLog);
+                    } else if (targetService === 'spotify') {
+                        await this._matchAndAddSpotify(targetAccount, type, extracted, addLog);
                     } else {
                         await this.api.addFavorite(targetAccount.userId, targetAccount.tokens.access_token, type, extracted.id);
                     }
@@ -363,7 +424,7 @@ class App {
                     addLog(msg);
                     failureLogs.push({ op: 'transfer', type, name: extracted.name, id: extracted.id, error: e.message });
                 }
-                await new Promise(r => setTimeout(r, targetService === 'qobuz' ? 500 : 200));
+                await new Promise(r => setTimeout(r, (targetService === 'qobuz' || targetService === 'spotify') ? 500 : 200));
             }
         }
         addLog(this.t('done'));
@@ -396,6 +457,27 @@ class App {
 
         // 3. Add to favorites
         await this.qobuzApi.addFavorite(targetAccount.userId, targetAccount.tokens.access_token, type, bestMatch.id);
+    }
+
+    async _matchAndAddSpotify(targetAccount, type, item, addLog) {
+        if (type === 'playlists') {
+            throw new Error('Playlist transfer to Spotify not yet implemented');
+        }
+
+        // 1. Search
+        addLog(this.t('searchingFor', { name: item.name }));
+        const results = await this.spotifyApi.search(targetAccount.tokens.access_token, item.name, type);
+        
+        if (results.length === 0) {
+            throw new Error(this.t('noMatch'));
+        }
+
+        // 2. Simple match (first result for now)
+        const bestMatch = results[0];
+        addLog(`${this.t('matchFound')}: ${bestMatch.name}`);
+
+        // 3. Add to favorites
+        await this.spotifyApi.addFavorite(targetAccount.tokens.access_token, type, bestMatch.id);
     }
 
     downloadJson() {

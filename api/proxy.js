@@ -21,6 +21,7 @@ export default async function handler(req, res) {
         const isAuth = decodedUrl.includes('auth.tidal.com');
         const isLegacyApi = decodedUrl.includes('api.tidal.com/v1') || decodedUrl.includes('api.tidal.com/v2');
         const isQobuz = decodedUrl.includes('qobuz.com');
+        const isSpotify = decodedUrl.includes('spotify.com');
         
         const headers = {
             'Accept': isAuth ? '*/*' : (req.headers.accept || 'application/json'),
