@@ -3,8 +3,13 @@
  */
 class SpotifyAPI {
     constructor() {
-        this.clientId = 'd9d1c9533f074d47a3f01c7f9f3f982a'; // Standard placeholder or user provided
+        this.clientId = 'd9d1c9533f074d47a3f01c7f9f3f982a'; // Standard placeholder
         this.redirectUri = window.location.origin + window.location.pathname;
+        if (this.redirectUri.includes('localhost')) {
+             this.redirectUri = 'http://localhost:3000/'; // Fallback for local testing
+        } else if (!this.redirectUri.endsWith('/')) {
+             this.redirectUri += '/';
+        }
         this.apiBase = 'https://api.spotify.com/v1';
         this.authBase = 'https://accounts.spotify.com/authorize';
         this.proxyEndpoint = '/api/proxy?url=';
