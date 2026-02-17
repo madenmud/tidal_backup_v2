@@ -5,11 +5,13 @@ class SpotifyAPI {
     constructor() {
         this.clientId = '0bb116db2a324fe7afe09aadb8493c1e'; // Updated Client ID
         this.redirectUri = window.location.origin + window.location.pathname;
-        if (this.redirectUri.includes('localhost')) {
-             this.redirectUri = 'http://localhost:3000/'; // Fallback for local testing
-        } else if (!this.redirectUri.endsWith('/')) {
-             this.redirectUri += '/';
+        if (this.redirectUri.endsWith('index.html')) {
+            this.redirectUri = this.redirectUri.replace('index.html', '');
         }
+        if (!this.redirectUri.endsWith('/')) {
+            this.redirectUri += '/';
+        }
+        console.log('[SpotifyAPI] Redirect URI:', this.redirectUri);
         this.apiBase = 'https://api.spotify.com/v1';
         this.authBase = 'https://accounts.spotify.com/authorize';
         this.proxyEndpoint = '/api/proxy?url=';
