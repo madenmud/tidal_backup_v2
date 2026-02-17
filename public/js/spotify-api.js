@@ -3,7 +3,7 @@
  */
 class SpotifyAPI {
     constructor() {
-        this.clientId = 'd9d1c9533f074d47a3f01c7f9f3f982a'; // Standard placeholder
+        this.clientId = '0bb116db2a324fe7afe09aadb8493c1e'; // Updated Client ID
         this.redirectUri = window.location.origin + window.location.pathname;
         if (this.redirectUri.includes('localhost')) {
              this.redirectUri = 'http://localhost:3000/'; // Fallback for local testing
