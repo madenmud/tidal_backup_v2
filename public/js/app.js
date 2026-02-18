@@ -445,7 +445,8 @@ class App {
 
         // 1. Search
         addLog(this.t('searchingFor', { name: item.name }));
-        const results = await this.qobuzApi.search(item.name, type);
+        const searchTerms = item.artists && item.artists.length > 0 ? `${item.name} ${item.artists.join(' ')}` : item.name;
+        const results = await this.qobuzApi.search(searchTerms, type);
         
         if (results.length === 0) {
             throw new Error(this.t('noMatch'));
