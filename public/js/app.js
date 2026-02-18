@@ -6,7 +6,7 @@ const TRANSFER_TYPE_ORDER = ['playlists', 'tracks', 'albums', 'artists'];
 class App {
     constructor() {
         this.accounts = { source: null, target: null };
-        this.targetService = 'tidal';
+        this.targetService = localStorage.getItem('tidal_v2_target_service') || 'tidal';
         I18n.init();
         I18n.apply();
 
@@ -17,7 +17,7 @@ class App {
         const savedVersion = localStorage.getItem('tidal_v2_version');
         if (savedVersion !== currentVersion) {
             const preserved = {};
-            ['tidal_v2_session_source', 'tidal_v2_session_target', 'qobuz_v2_session_target'].forEach((k) => {
+            ['tidal_v2_session_source', 'tidal_v2_session_target', 'qobuz_v2_session_target', 'spotify_v2_session_target', 'tidal_v2_target_service'].forEach((k) => {
                 const v = localStorage.getItem(k);
                 if (v) preserved[k] = v;
             });
@@ -46,9 +46,12 @@ class App {
         document.getElementById('btn-target-refresh').onclick = () => this.refreshStats('target');
         
         // Target Service Selector
-        document.querySelectorAll('input[name="target-service"]').forEach(radio => {
+        const serviceRadios = document.querySelectorAll('input[name="target-service"]');
+        serviceRadios.forEach(radio => {
+            if (radio.value === this.targetService) radio.checked = true;
             radio.onchange = (e) => this.switchTargetService(e.target.value);
         });
+        this.switchTargetService(this.targetService);
 
         // Qobuz Login
         document.getElementById('btn-qobuz-login').onclick = () => this.qobuzLogin();
@@ -100,6 +103,7 @@ class App {
 
     switchTargetService(service) {
         this.targetService = service;
+        localStorage.setItem('tidal_v2_target_service', service);
         const targetTidal = document.getElementById('target-tidal-container');
         const targetQobuz = document.getElementById('target-qobuz-container');
         const targetSpotify = document.getElementById('target-spotify-container');
@@ -191,31 +195,22 @@ class App {
         if (spotifyToken) {
             window.location.hash = '';
             this.switchTargetService('spotify');
-            document.querySelector('input[name="target-service"][value="spotify"]').checked = true;
+            const radio = document.querySelector('input[name="target-service"][value="spotify"]');
+            if (radio) radio.checked = true;
             await this.handleSpotifyAuthSuccess(spotifyToken);
             return;
         }
 
-        // Try Tidal Target first
-        const sTargetTidal = localStorage.getItem('tidal_v2_session_target');
-        if (sTargetTidal) {
-            await this.handleAuthSuccess('target', JSON.parse(sTargetTidal));
-        } else {
-            // Try Qobuz Target
+        // Load session based on last selected service
+        if (this.targetService === 'tidal') {
+            const sTargetTidal = localStorage.getItem('tidal_v2_session_target');
+            if (sTargetTidal) await this.handleAuthSuccess('target', JSON.parse(sTargetTidal));
+        } else if (this.targetService === 'qobuz') {
             const sTargetQobuz = localStorage.getItem('qobuz_v2_session_target');
-            if (sTargetQobuz) {
-                this.switchTargetService('qobuz');
-                document.querySelector('input[name="target-service"][value="qobuz"]').checked = true;
-                this.handleQobuzAuthSuccess(JSON.parse(sTargetQobuz));
-            } else {
-                // Try Spotify Target
-                const sTargetSpotify = localStorage.getItem('spotify_v2_session_target');
-                if (sTargetSpotify) {
-                    this.switchTargetService('spotify');
-                    document.querySelector('input[name="target-service"][value="spotify"]').checked = true;
-                    await this.handleSpotifyAuthSuccess(sTargetSpotify);
-                }
-            }
+            if (sTargetQobuz) await this.handleQobuzAuthSuccess(JSON.parse(sTargetQobuz));
+        } else if (this.targetService === 'spotify') {
+            const sTargetSpotify = localStorage.getItem('spotify_v2_session_target');
+            if (sTargetSpotify) await this.handleSpotifyAuthSuccess(sTargetSpotify);
         }
     }
 
