@@ -357,7 +357,12 @@ class App {
         const item = entry.item || entry[type.slice(0, -1)] || entry.track || entry.artist || entry.album || entry.playlist || entry;
         const id = item?.id ?? entry?.id ?? item?.uuid ?? entry?.uuid;
         const name = item?.title ?? item?.name ?? entry?.title ?? entry?.name ?? String(id);
-        return id ? { id, name } : null;
+        
+        // Extra metadata for matching
+        const artists = (item?.artists || entry?.artists || []).map(a => a.name).filter(Boolean);
+        const album = item?.album?.title || entry?.album?.title || null;
+        
+        return id ? { id, name, artists, album } : null;
     }
 
     async startTransfer() {
@@ -456,20 +461,73 @@ class App {
 
     async _matchAndAddSpotify(targetAccount, type, item, addLog) {
         if (type === 'playlists') {
-            throw new Error('Playlist transfer to Spotify not yet implemented');
+            // 1. Get playlist metadata from source (Tidal)
+            const sourcePlaylist = await this.api.getPlaylist(this.accounts.source.tokens.access_token, item.id);
+            addLog(`🚀 ${this.t('transferringItems', { n: 1 })} ${sourcePlaylist.title}`);
+
+            // 2. Create new playlist on Spotify
+            const newPlaylist = await this.spotifyApi.createPlaylist(
+                targetAccount.tokens.access_token,
+                targetAccount.userId,
+                sourcePlaylist.title,
+                sourcePlaylist.description || 'Transferred from Tidal'
+            );
+            addLog(`✅ ${this.t('matchFound')}: ${newPlaylist.name} (Created on Spotify)`);
+
+            // 3. Get tracks from Tidal playlist
+            const tidalTracks = await this.api.getPlaylistTracks(
+                this.accounts.source.userId,
+                this.accounts.source.tokens.access_token,
+                item.id
+            );
+            addLog(`🔍 ${this.t('searchingFor', { name: tidalTracks.length })} tracks...`);
+
+            // 4. Match tracks on Spotify
+            const trackUris = [];
+            let matchedCount = 0;
+            for (const track of tidalTracks) {
+                try {
+                    const results = await this.spotifyApi.search(targetAccount.tokens.access_token, `${track.name} ${track.artists.join(' ')}`, 'tracks');
+                    const bestMatch = this.spotifyApi.findBestMatch(results, track, 'tracks');
+                    if (bestMatch) {
+                        trackUris.push(bestMatch.uri);
+                        matchedCount++;
+                    }
+                } catch (e) {
+                    console.warn(`[Transfer] Failed to match track: ${track.name}`, e);
+                }
+            }
+            addLog(`🎵 Matched ${matchedCount}/${tidalTracks.length} tracks.`);
+
+            // 5. Add tracks to the new Spotify playlist
+            if (trackUris.length > 0) {
+                await this.spotifyApi.addTracksToPlaylist(targetAccount.tokens.access_token, newPlaylist.id, trackUris);
+                addLog(`✨ Successfully added ${trackUris.length} tracks to ${newPlaylist.name}`);
+            }
+            return;
         }
 
         // 1. Search
         addLog(this.t('searchingFor', { name: item.name }));
-        const results = await this.spotifyApi.search(targetAccount.tokens.access_token, item.name, type);
+        const searchTerms = item.artists && item.artists.length > 0 ? `${item.name} ${item.artists.join(' ')}` : item.name;
+        const results = await this.spotifyApi.search(targetAccount.tokens.access_token, searchTerms, type);
         
         if (results.length === 0) {
             throw new Error(this.t('noMatch'));
         }
 
-        // 2. Simple match (first result for now)
-        const bestMatch = results[0];
-        addLog(`${this.t('matchFound')}: ${bestMatch.name}`);
+        // 2. Advanced match
+        const bestMatch = this.spotifyApi.findBestMatch(results, item, type);
+        
+        if (!bestMatch) {
+            addLog(`⚠️ No strong match found, using first result`);
+            const fallback = results[0];
+            addLog(`${this.t('matchFound')}: ${fallback.name}`);
+            await this.spotifyApi.addFavorite(targetAccount.tokens.access_token, type, fallback.id);
+            return;
+        }
+
+        addLog(`${this.t('matchFound')}: ${bestMatch.name} (${bestMatch.artists.join(', ')})`);
 
         // 3. Add to favorites
         await this.spotifyApi.addFavorite(targetAccount.tokens.access_token, type, bestMatch.id);

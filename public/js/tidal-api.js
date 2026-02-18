@@ -293,12 +293,81 @@ class TidalAPI {
         // Many Tidal clients use PUT with both query params and a JSON body for robustness
         return this.fetchProxy(url, {
             method: 'PUT',
-            headers: { 
-                'Authorization': `Bearer ${accessToken}`, 
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
                 'Accept': 'application/json',
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ uuids: [String(playlistId)], folderId: 'root' })
+        });
+    }
+
+    /**
+     * Get tracks from a Tidal playlist
+     * @param {string} userId - User ID
+     * @param {string} accessToken - Tidal access token
+     * @param {string} playlistId - Tidal playlist ID
+     * @returns {Promise<Array>} Array of track objects with id, name, artists, album
+     */
+    async getPlaylistTracks(userId, accessToken, playlistId) {
+        const tracks = [];
+        let offset = 0;
+        const limit = 100;
+        let hasMore = true;
+
+        try {
+            while (hasMore) {
+                const url = `${this.legacyApiBase}/playlists/${playlistId}/items?limit=${limit}&offset=${offset}`;
+                const data = await this.fetchProxy(url, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Accept': 'application/json'
+                    },
+                    suppressLog: true
+                });
+
+                if (data.items && Array.isArray(data.items)) {
+                    for (const item of data.items) {
+                        const track = item.item || item.track || item;
+                        if (track && track.id) {
+                            tracks.push({
+                                id: track.id,
+                                name: track.title || track.name,
+                                artists: (track.artists || []).map(a => a.name || a.title).filter(Boolean),
+                                album: track.album?.title || null,
+                                duration: track.duration,
+                                isrc: track.isrc
+                            });
+                        }
+                    }
+                }
+
+                const total = data.totalNumberOfItems ?? tracks.length;
+                offset += limit;
+                hasMore = offset < total && data.items && data.items.length === limit;
+            }
+        } catch (e) {
+            console.error(`[TidalAPI] Error fetching playlist tracks:`, e);
+            throw e;
+        }
+
+        return tracks;
+    }
+
+    /**
+     * Get playlist metadata
+     * @param {string} accessToken - Tidal access token
+     * @param {string} playlistId - Tidal playlist ID
+     * @returns {Promise<Object>} Playlist object with id, name, description, etc.
+     */
+    async getPlaylist(accessToken, playlistId) {
+        const url = `${this.legacyApiBase}/playlists/${playlistId}`;
+        return this.fetchProxy(url, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Accept': 'application/json'
+            },
+            suppressLog: true
         });
     }
 }
