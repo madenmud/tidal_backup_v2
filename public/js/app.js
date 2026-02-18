@@ -49,11 +49,19 @@ class App {
         this.api = new TidalAPI(this.clientId);
         this.qobuzApi = new QobuzAPI();
 
-        const customSpotifyId = localStorage.getItem('custom_spotify_client_id');
+        let customSpotifyId = localStorage.getItem('custom_spotify_client_id');
+        // Handle Base64 Encoding for simple obfuscation
+        try {
+            if (customSpotifyId && !customSpotifyId.match(/^[a-f0-9]{32}$/)) {
+                customSpotifyId = atob(customSpotifyId);
+            }
+        } catch (e) { /* Assume plain text if decode fails */ }
+
         this.spotifyApi = new SpotifyAPI(customSpotifyId);
 
         this.initUI();
         this.loadSessions();
+        this.handleCallback();
     }
 
     t(key, vars) { return I18n.t(key, vars || {}); }
@@ -73,10 +81,29 @@ class App {
         const spotifyModal = document.getElementById('spotify-settings-modal');
         const spotifyInput = document.getElementById('input-spotify-client-id');
         const spotifyRedirect = document.getElementById('spotify-redirect-uri');
+        const btnToggle = document.getElementById('btn-toggle-visibility');
+
+        if (btnToggle) {
+            btnToggle.onclick = () => {
+                const type = spotifyInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                spotifyInput.setAttribute('type', type);
+                btnToggle.textContent = type === 'password' ? '👁️' : '🙈';
+            };
+        }
 
         document.getElementById('btn-open-spotify-settings').onclick = (e) => {
             e.preventDefault();
-            spotifyInput.value = localStorage.getItem('custom_spotify_client_id') || '';
+            // Load and Decode if needed
+            let currentId = localStorage.getItem('custom_spotify_client_id') || '';
+            try {
+                // If it looks like base64 (not just hex 32 chars), decode it
+                // Simple heuristic: Client IDs are usually 32 hex chars. Base64 is longer/different.
+                if (currentId && !currentId.match(/^[a-f0-9]{32}$/)) {
+                    currentId = atob(currentId);
+                }
+            } catch (e) { }
+
+            spotifyInput.value = currentId;
             if (spotifyRedirect) spotifyRedirect.textContent = window.location.origin + window.location.pathname;
             spotifyModal.classList.remove('hidden');
         };
@@ -84,18 +111,49 @@ class App {
         document.getElementById('btn-spotify-save').onclick = () => {
             const newId = spotifyInput.value.trim();
             if (newId) {
-                localStorage.setItem('custom_spotify_client_id', newId);
+                // Encode to Base64 before saving
+                const encodedId = btoa(newId);
+                localStorage.setItem('custom_spotify_client_id', encodedId);
+
+                // Update instance with plain ID
+                this.spotifyApi = new SpotifyAPI(newId);
             } else {
                 localStorage.removeItem('custom_spotify_client_id');
+                this.spotifyApi = new SpotifyAPI(null); // Reset to default
             }
-            alert(this.t('settingsSaved') || 'Settings saved. Use the new Client ID for login.');
+            alert(this.t('settingSaved') || 'Settings saved. Use the new Client ID for login.');
             spotifyModal.classList.add('hidden');
             // Re-initialize API and force re-login for Spotify
-            this.spotifyApi = new SpotifyAPI(newId);
             this.logout('target'); // Force logout to clear old token
         };
 
-        // Target Service Selector
+        // Test Connection Button
+        const btnTest = document.getElementById('btn-spotify-test');
+        if (btnTest) {
+            btnTest.onclick = async () => {
+                const testId = spotifyInput.value.trim();
+                if (!testId) {
+                    alert('Please enter a Client ID first.');
+                    return;
+                }
+                // Temp API instance
+                const tempApi = new SpotifyAPI(testId);
+                const authUrl = await tempApi.getAuthUrlPKCE();
+
+                // Open popup
+                const popup = window.open(authUrl, 'spotify_test', 'width=500,height=700');
+
+                // Listen for success message from popup
+                const msgHandler = (event) => {
+                    if (event.data?.type === 'SPOTIFY_AUTH_SUCCESS') {
+                        alert('Connection Successful! ✅\n\nYour Client ID is valid and Redirect URI is correct.');
+                        if (popup) popup.close();
+                        window.removeEventListener('message', msgHandler);
+                    }
+                };
+                window.addEventListener('message', msgHandler);
+            };
+        }
 
         // Target Service Selector
         const serviceRadios = document.querySelectorAll('input[name="target-service"]');
@@ -290,42 +348,7 @@ class App {
         const code = params.get('code');
         const error = params.get('error');
 
-        if (error) {
-            debugLog(`ERROR from Spotify: ${error}`);
-            window.history.replaceState({}, document.title, window.location.pathname);
-        } else if (code) {
-            debugLog('SUCCESS: Detected Spotify auth code. Exchanging for token...');
-            window.history.replaceState({}, document.title, window.location.pathname);
 
-            this.targetService = 'spotify';
-            localStorage.setItem('tidal_v2_target_service', 'spotify');
-
-            try {
-                const token = await this.spotifyApi.getAccessToken(code);
-                debugLog('PKCE Exchange Success!');
-                await this.handleSpotifyAuthSuccess(token);
-            } catch (e) {
-                console.error(e);
-                alert(`Spotify Login Failed: ${e.message}`);
-                debugLog(`PKCE Exchange Failed: ${e.message}`);
-            }
-            // If PKCE login occurred, we return early to avoid double-loading or overwriting
-            return;
-        }
-
-        // Legacy/Fallback check: Check for Spotify token in hash (Implicit Grant)
-        const hash = window.location.hash.substring(1);
-        if (hash) {
-            const hashParams = new URLSearchParams(hash);
-            const spotifyToken = hashParams.get('access_token');
-            if (spotifyToken) {
-                history.replaceState(null, "", window.location.pathname + window.location.search);
-                this.targetService = 'spotify';
-                localStorage.setItem('tidal_v2_target_service', 'spotify');
-                await this.handleSpotifyAuthSuccess(spotifyToken);
-                return;
-            }
-        }
 
         // Load session based on last selected service
         debugLog(`Attempting to load last known Target service: ${this.targetService}`);
@@ -357,6 +380,54 @@ class App {
         if (radio) {
             debugLog(`Setting radio button to: ${this.targetService}`);
             radio.checked = true;
+        }
+    }
+
+    async handleCallback() {
+        const params = new URLSearchParams(window.location.search);
+        const hash = window.location.hash.substring(1);
+        const hashParams = new URLSearchParams(hash);
+
+        const code = params.get('code');
+        const error = params.get('error');
+        const accessToken = hashParams.get('access_token');
+
+        // Check for Popup
+        if (window.opener && (code || accessToken || error)) {
+            if (code || accessToken) {
+                window.opener.postMessage({ type: 'SPOTIFY_AUTH_SUCCESS' }, '*');
+            } else {
+                window.opener.postMessage({ type: 'SPOTIFY_AUTH_ERROR', error }, '*');
+            }
+            setTimeout(() => window.close(), 500);
+            return;
+        }
+
+        if (error) {
+            debugLog(`ERROR from Spotify: ${error}`);
+            window.history.replaceState({}, document.title, window.location.pathname);
+            return;
+        }
+
+        if (code) {
+            debugLog('SUCCESS: Detected Spotify auth code. Exchanging for token...');
+            window.history.replaceState({}, document.title, window.location.pathname);
+
+            this.targetService = 'spotify';
+            localStorage.setItem('tidal_v2_target_service', 'spotify');
+
+            try {
+                const token = await this.spotifyApi.getAccessToken(code);
+                debugLog('PKCE Exchange Success!');
+                await this.handleSpotifyAuthSuccess(token);
+                // Switch UI to Spotify immediately
+                this.switchTargetService('spotify');
+                const radio = document.querySelector(`input[name="target-service"][value="spotify"]`);
+                if (radio) radio.checked = true;
+            } catch (e) {
+                console.error(e);
+                alert(`Spotify Login Failed: ${e.message}`);
+            }
         }
     }
 
@@ -673,42 +744,58 @@ class App {
 
                     let success = false;
                     let itemName = extracted.name;
+                    let targetInfo = '';
 
                     try {
                         if (targetService === 'qobuz') {
-                            await this._matchAndAddQobuz(targetAccount, type, extracted, addLog);
-                            success = true;
+                            const result = await this._matchAndAddQobuz(targetAccount, type, extracted, addLog);
+                            if (result) {
+                                success = true;
+                                targetInfo = ` -> Qobuz ID: ${result}`;
+                            }
                         } else if (targetService === 'spotify') {
-                            // For playlists, logic is self-contained (returns nothing). 
-                            // For tracks/albums/artists, it returns ID to batch.
                             if (type === 'playlists') {
                                 await this._matchAndAddSpotify(targetAccount, type, extracted, addLog);
                                 success = true;
+                                targetInfo = ' (Playlist Created)';
                             } else {
                                 const spotifyId = await this._matchAndAddSpotify(targetAccount, type, extracted, addLog);
                                 if (spotifyId) {
                                     spotifyBatch.push(spotifyId);
-                                    // In Test Mode, we must flush immediately because we only have 1 item
-                                    // Or if batch is full
                                     if (isTest || spotifyBatch.length >= SPOTIFY_BATCH_SIZE) {
                                         await this._addSpotifyBatch(targetAccount, type, [...spotifyBatch], addLog);
                                         spotifyBatch = [];
                                     }
-                                    success = true; // Considered success as it is queued
+                                    success = true;
+                                    targetInfo = ` -> Spotify ID: ${spotifyId}`;
                                 } else {
-                                    success = false; // No match found
+                                    success = false;
                                 }
                             }
                         } else {
                             // Tidal
+                            // Tidal returns empty body on success, so we assume success if no error thrown
                             await this.api.addFavorite(targetAccount.userId, targetAccount.tokens.access_token, type, extracted.id);
                             success = true;
+                            targetInfo = ' -> Added to Tidal Favorites';
+                        }
+
+                        if (success) {
+                            // Detailed Success Log
+                            const artistInfo = extracted.artists ? ` by ${extracted.artists[0]}` : '';
+                            addLog(`✅ [${this.t('success')}] ${itemName}${artistInfo}${targetInfo}`);
+                        } else {
+                            // Search Failed Log
+                            const artistInfo = extracted.artists ? ` by ${extracted.artists[0]}` : '';
+                            addLog(`⚠️ [${this.t('skipped')}] ${itemName}${artistInfo} - Match not found`);
+                            failureLogs.push({ op: 'transfer', type, name: itemName, id: extracted.id, error: 'Match not found' });
                         }
 
                     } catch (e) {
-                        const msg = `${this.t('failed')} ${extracted.name}: ${e.message}`;
+                        const artistInfo = extracted.artists ? ` by ${extracted.artists[0]}` : '';
+                        const msg = `❌ [${this.t('failed')}] ${itemName}${artistInfo}: ${e.message}`;
                         addLog(msg);
-                        failureLogs.push({ op: 'transfer', type, name: extracted.name, id: extracted.id, error: e.message });
+                        failureLogs.push({ op: 'transfer', type, name: itemName, id: extracted.id, error: e.message });
                         success = false;
                     } finally {
                         processedCount++;
@@ -716,6 +803,7 @@ class App {
                         bar.style.width = `${pct}%`;
                         if (percentEl) percentEl.textContent = `${pct}%`;
 
+                        // Status Bar Update (keep it simple for UI)
                         if (success) {
                             if (targetService === 'spotify' && type !== 'playlists' && !isTest) {
                                 status.textContent = `${this.t('processing')} ${itemName} - Batched (${processedCount}/${totalItems})`;
@@ -724,9 +812,7 @@ class App {
                             }
                         } else {
                             // If failed, keep processing
-                            if (!status.textContent.includes(`(${processedCount}/${totalItems})`)) {
-                                status.textContent = `${this.t('processing')} ${extracted.name} (${processedCount}/${totalItems})`;
-                            }
+                            status.textContent = `${this.t('processing')} ${itemName} (${processedCount}/${totalItems})`;
                         }
                     }
                 };

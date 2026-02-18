@@ -162,6 +162,10 @@
                         <p class="desc" data-i18n="spotifyLoginDesc">Connect your Spotify account.</p>
                         <button id="btn-spotify-login" class="btn btn-primary" data-i18n="connectSpotify">Connect
                             Spotify</button>
+                        <div id="spotify-api-status" class="api-status hidden"
+                            style="margin-top: 5px; font-size: 0.85em;">
+                            <span class="status-indicator"></span> <span class="status-text"></span>
+                        </div>
                         <div style="margin-top: 10px;">
                             <a href="#" id="btn-open-spotify-settings"
                                 style="font-size: 0.9em; text-decoration: underline; color: #666;">⚙️ Use Custom Client
@@ -252,8 +256,12 @@
             <h3>Spotify Settings</h3>
             <p class="desc-small">Using your own Client ID helps to significantly reduce rate limits.</p>
 
-            <label>Client ID:</label>
-            <input type="text" id="input-spotify-client-id" class="input-text" placeholder="Paste your Client ID here">
+            <label data-i18n="customClientId">Client ID:</label>
+            <div style="display: flex; gap: 5px;">
+                <input type="password" id="input-spotify-client-id" class="input-text"
+                    placeholder="Paste your Client ID here" style="flex: 1;">
+                <button id="btn-toggle-visibility" class="btn btn-secondary" style="padding: 0 10px;">👁️</button>
+            </div>
 
             <div class="guide-box"
                 style="margin-top: 15px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 5px; font-size: 0.9em; color: #333;">

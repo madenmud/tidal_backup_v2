@@ -4,7 +4,7 @@
 class SpotifyAPI {
     constructor(clientId) {
         // Use provided clientId or fallback to default
-        this.clientId = clientId || '0bb116db2a324fe7afe09aadb8493c1e';
+        this.clientId = clientId || 'fcecfc72172e4cd267473117a17cbd4d';
         this.redirectUri = window.location.origin + window.location.pathname;
         if (this.redirectUri.endsWith('index.html')) {
             this.redirectUri = this.redirectUri.replace('index.html', '');
@@ -25,6 +25,32 @@ class SpotifyAPI {
 
         // Cache
         this.searchCache = new Map();
+    }
+
+    async checkHealth(accessToken) {
+        if (!accessToken) return { status: 'unknown', message: 'No token' };
+        try {
+            const start = Date.now();
+            // Using /me is safest lightweight call
+            const response = await fetch(`${this.apiBase}/me`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            const duration = Date.now() - start;
+
+            if (response.status === 429) {
+                return { status: 'bad', code: 429, message: 'Rate Limit Exceeded' };
+            }
+            if (!response.ok) {
+                return { status: 'error', code: response.status, message: response.statusText };
+            }
+            // If response is slow (> 2s), warn user
+            if (duration > 2000) {
+                return { status: 'slow', duration, message: 'API response is slow' };
+            }
+            return { status: 'good', duration, message: 'OK' };
+        } catch (e) {
+            return { status: 'error', message: e.message };
+        }
     }
 
     async getAuthUrlPKCE() {
