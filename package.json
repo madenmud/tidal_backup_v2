@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "start": "serve public",
+    "dev": "node scripts/local-dev.js",
     "build": "node scripts/inject_version.js"
   },
   "dependencies": {

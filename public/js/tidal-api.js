@@ -118,12 +118,29 @@ class TidalAPI {
         });
     }
 
+    parseUserIdFromToken(token) {
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            return payload.uid || payload.sub || payload.user_id;
+        } catch (e) {
+            console.warn('[TidalAPI] Failed to parse token:', e);
+            return null;
+        }
+    }
+
     async getSessions(accessToken) {
-        const data = await this.fetchProxy(`${this.apiBase}/users/me`, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-        const user = data.data || data;
-        return { userId: user.id, user_id: user.id };
+        try {
+            const data = await this.fetchProxy(`${this.apiBase}/users/me`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            const user = data.data || data;
+            return { userId: user.id, user_id: user.id, username: user.username || user.email };
+        } catch (e) {
+            console.warn('[TidalAPI] Failed to fetch /users/me, falling back to token parsing:', e.message);
+            const userId = this.parseUserIdFromToken(accessToken);
+            if (!userId) throw e;
+            return { userId, user_id: userId, username: `User ${userId}` };
+        }
     }
 
     _collectionType(type) {
@@ -316,8 +333,12 @@ class TidalAPI {
         let hasMore = true;
 
         try {
+            // Get session for country code
+            const session = await this.getLegacySession(accessToken);
+            const countryCode = session.countryCode || 'US';
+
             while (hasMore) {
-                const url = `${this.legacyApiBase}/playlists/${playlistId}/items?limit=${limit}&offset=${offset}`;
+                const url = `${this.legacyApiBase}/playlists/${playlistId}/items?countryCode=${countryCode}&limit=${limit}&offset=${offset}`;
                 const data = await this.fetchProxy(url, {
                     headers: {
                         'Authorization': `Bearer ${accessToken}`,
@@ -341,7 +362,6 @@ class TidalAPI {
                         }
                     }
                 }
-
                 const total = data.totalNumberOfItems ?? tracks.length;
                 offset += limit;
                 hasMore = offset < total && data.items && data.items.length === limit;
@@ -361,7 +381,11 @@ class TidalAPI {
      * @returns {Promise<Object>} Playlist object with id, name, description, etc.
      */
     async getPlaylist(accessToken, playlistId) {
-        const url = `${this.legacyApiBase}/playlists/${playlistId}`;
+        // Get session for country code
+        const session = await this.getLegacySession(accessToken);
+        const countryCode = session.countryCode || 'US';
+
+        const url = `${this.legacyApiBase}/playlists/${playlistId}?countryCode=${countryCode}`;
         return this.fetchProxy(url, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
