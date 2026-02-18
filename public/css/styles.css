@@ -204,6 +204,29 @@ body {
     box-shadow: var(--shadow);
 }
 
+/* Debug */
+.debug-section {
+    margin-top: 2rem;
+    border: var(--bw) solid var(--border);
+    padding: 1rem;
+    background: #1a1a1a;
+    color: #00ff00;
+    box-shadow: var(--shadow);
+}
+
+.debug-container {
+    height: 150px;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.debug-container div {
+    border-bottom: 1px solid #333;
+    padding: 2px 0;
+}
+
 .progress-row {
     display: flex;
     align-items: center;
