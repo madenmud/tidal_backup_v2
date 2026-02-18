@@ -115,6 +115,8 @@ class App {
         // Show the appropriate container
         if (this.accounts.target && (this.accounts.target.service || 'tidal') === service) {
             targetProfile.classList.remove('hidden');
+            const userDisplay = this.accounts.target.userName || this.accounts.target.userId;
+            document.getElementById('target-username').textContent = `${service.charAt(0).toUpperCase() + service.slice(1)}: ${userDisplay}`;
         } else {
             if (service === 'tidal') targetTidal.classList.remove('hidden');
             else if (service === 'qobuz') targetQobuz.classList.remove('hidden');
@@ -128,9 +130,11 @@ class App {
     }
 
     async handleSpotifyAuthSuccess(token) {
+        console.log('[App] Spotify Auth Success, fetching user info...');
         localStorage.setItem('spotify_v2_session_target', token);
         try {
             const user = await this.spotifyApi.getUser(token);
+            console.log('[App] Spotify User:', user.display_name);
             this.accounts.target = { 
                 service: 'spotify',
                 tokens: { access_token: token }, 
@@ -138,13 +142,13 @@ class App {
                 userName: user.display_name
             };
             
-            document.getElementById('target-spotify-container').classList.add('hidden');
-            document.getElementById('target-profile').classList.remove('hidden');
-            document.getElementById('target-username').textContent = `Spotify: ${user.display_name}`;
+            // Re-run switch to ensure correct UI state with the new account
+            this.switchTargetService('spotify');
             
             await this.refreshStats('target');
             this.checkReadiness();
         } catch (e) {
+            console.error('[App] Spotify User fetch failed:', e);
             alert(`${this.t('loginFailed')}: ${e.message}`);
             this.logout('target');
         }
@@ -185,23 +189,32 @@ class App {
     }
 
     async loadSessions() {
+        console.log('[App] Loading sessions...');
         const sSource = localStorage.getItem('tidal_v2_session_source');
         if (sSource) await this.handleAuthSuccess('source', JSON.parse(sSource));
 
         // Check for Spotify token in hash (after redirect)
         const hash = window.location.hash.substring(1);
-        const params = new URLSearchParams(hash);
-        const spotifyToken = params.get('access_token');
-        if (spotifyToken) {
-            window.location.hash = '';
-            this.switchTargetService('spotify');
-            const radio = document.querySelector('input[name="target-service"][value="spotify"]');
-            if (radio) radio.checked = true;
-            await this.handleSpotifyAuthSuccess(spotifyToken);
-            return;
+        if (hash) {
+            const params = new URLSearchParams(hash);
+            const spotifyToken = params.get('access_token');
+            if (spotifyToken) {
+                console.log('[App] Detected Spotify token in URL hash');
+                // Clear hash without reload
+                history.replaceState(null, "", window.location.pathname + window.location.search);
+                
+                this.targetService = 'spotify';
+                localStorage.setItem('tidal_v2_target_service', 'spotify');
+                const radio = document.querySelector('input[name="target-service"][value="spotify"]');
+                if (radio) radio.checked = true;
+                
+                await this.handleSpotifyAuthSuccess(spotifyToken);
+                return;
+            }
         }
 
         // Load session based on last selected service
+        console.log('[App] Target service:', this.targetService);
         if (this.targetService === 'tidal') {
             const sTargetTidal = localStorage.getItem('tidal_v2_session_target');
             if (sTargetTidal) await this.handleAuthSuccess('target', JSON.parse(sTargetTidal));
@@ -212,6 +225,9 @@ class App {
             const sTargetSpotify = localStorage.getItem('spotify_v2_session_target');
             if (sTargetSpotify) await this.handleSpotifyAuthSuccess(sTargetSpotify);
         }
+        
+        // Final UI sync
+        this.switchTargetService(this.targetService);
     }
 
     async login(type) {
