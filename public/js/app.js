@@ -113,9 +113,10 @@ class App {
         [targetTidal, targetQobuz, targetSpotify, targetProfile].forEach(el => el.classList.add('hidden'));
         
         // Show the appropriate container
-        if (this.accounts.target && (this.accounts.target.service || 'tidal') === service) {
+        const account = this.accounts.target;
+        if (account && (account.service || 'tidal') === service) {
             targetProfile.classList.remove('hidden');
-            const userDisplay = this.accounts.target.userName || this.accounts.target.userId;
+            const userDisplay = account.userName || account.userId;
             document.getElementById('target-username').textContent = `${service.charAt(0).toUpperCase() + service.slice(1)}: ${userDisplay}`;
         } else {
             if (service === 'tidal') targetTidal.classList.remove('hidden');
@@ -130,11 +131,11 @@ class App {
     }
 
     async handleSpotifyAuthSuccess(token) {
-        console.log('[App] Spotify Auth Success, fetching user info...');
+        console.log('[App] handleSpotifyAuthSuccess with token:', token.substring(0, 10) + '...');
         localStorage.setItem('spotify_v2_session_target', token);
         try {
             const user = await this.spotifyApi.getUser(token);
-            console.log('[App] Spotify User:', user.display_name);
+            console.log('[App] Spotify User profile fetched:', user.display_name);
             this.accounts.target = { 
                 service: 'spotify',
                 tokens: { access_token: token }, 
@@ -143,6 +144,7 @@ class App {
             };
             
             // Re-run switch to ensure correct UI state with the new account
+            console.log('[App] Switching UI to spotify...');
             this.switchTargetService('spotify');
             
             await this.refreshStats('target');
@@ -205,8 +207,6 @@ class App {
                 
                 this.targetService = 'spotify';
                 localStorage.setItem('tidal_v2_target_service', 'spotify');
-                const radio = document.querySelector('input[name="target-service"][value="spotify"]');
-                if (radio) radio.checked = true;
                 
                 await this.handleSpotifyAuthSuccess(spotifyToken);
                 return;
@@ -228,6 +228,8 @@ class App {
         
         // Final UI sync
         this.switchTargetService(this.targetService);
+        const radio = document.querySelector(`input[name="target-service"][value="${this.targetService}"]`);
+        if (radio) radio.checked = true;
     }
 
     async login(type) {
