@@ -227,6 +227,15 @@ class App {
         debugLog('Checking URL hash for auth data:', hash ? '(data present)' : '(empty)');
         if (hash) {
             const params = new URLSearchParams(hash);
+            if (params.has('error')) {
+                const error = params.get('error');
+                debugLog(`ERROR from Spotify: ${error}`);
+                if (error === 'unsupported_response_type') {
+                    debugLog('HINT: Please enable "Implicit Grant" in your Spotify Developer Dashboard settings!');
+                }
+                history.replaceState(null, "", window.location.pathname + window.location.search);
+            }
+            
             const spotifyToken = params.get('access_token');
             if (spotifyToken) {
                 debugLog('SUCCESS: Detected Spotify access_token in URL hash');
@@ -238,8 +247,6 @@ class App {
                 
                 await this.handleSpotifyAuthSuccess(spotifyToken);
                 return;
-            } else {
-                debugLog('Hash present but no access_token found. Full hash:', hash);
             }
         }
 
