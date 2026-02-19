@@ -100,7 +100,7 @@
                         <button id="btn-stop-transfer" class="btn btn-danger btn-large hidden" data-i18n="stop">Stop
                             ⏹</button>
                     </div>
-                    <button id="btn-test-transfer" class="btn btn-secondary btn-sm mt-2 w-full" disabled>🧪 Test
+                    <button id="btn-test-transfer" class="btn btn-secondary btn-sm mt-2 w-full hidden" disabled>🧪 Test
                         (Transfer 1 Item)</button>
                     <hr class="divider">
                     <h3 class="box-title" data-i18n="backupRestoreTitle">Backup / Restore (JSON)</h3>
@@ -192,7 +192,7 @@
         </div>
 
         <!-- Progress Section -->
-        <section id="progress-section" class="section progress-section hidden">
+        <section id="progress-section" class="section progress-section">
             <h2 class="section-title" data-i18n="transferStatus">Transfer Status</h2>
             <div class="progress-row">
                 <div class="progress-bar-container">
@@ -208,7 +208,7 @@
         </section>
 
         <!-- Debug Section -->
-        <section id="debug-section" class="section debug-section">
+        <section id="debug-section" class="section debug-section hidden">
             <h2 class="section-title">Debug Logs 🛠️</h2>
             <div id="debug-container" class="debug-container">
                 <div>[System] Debug logger initialized. Waiting for actions...</div>
@@ -225,21 +225,12 @@
         <div class="modal-content">
             <h2 data-i18n="settings">Settings ⚙️</h2>
             <div class="settings-group">
-                <label data-i18n="clientIdPreset">Client ID Preset</label>
-                <p class="help-text" data-i18n="clientIdHelp" data-i18n-html>Tidal may revoke IDs...</p>
-                <div class="id-grid">
-                    <button class="btn btn-xs preset-id" data-id="fX2JxdmntZWK0ixT">Current (2026)</button>
-                    <button class="btn btn-xs preset-id" data-id="pUBRShyxR8fkaI0D">Web (Legacy)</button>
-                    <button class="btn btn-xs preset-id" data-id="c8jBkoXz1aY5Y0LG">Desktop</button>
-                    <button class="btn btn-xs preset-id" data-id="VSVaDz8Ky1V7o1f6">Android</button>
-                    <button class="btn btn-xs preset-id" data-id="H9iEbAVflp2n8j2L">FireTV</button>
-                </div>
-                <input type="text" id="input-client-id" class="input" value="fX2JxdmntZWK0ixT">
+                <label><input type="checkbox" id="check-debug-mode"> 🛠️ Debug Mode (Show test button &amp; debug
+                    logs)</label>
             </div>
             <div class="settings-group">
-                <label data-i18n="manualToken">Manual Access Token (Emergency)</label>
-                <input type="text" id="input-manual-token" class="input" data-i18n-placeholder="manualTokenPlaceholder">
-                <p class="help-text" data-i18n="manualTokenHelp">Only use if automatic login fails repeatedly.</p>
+                <label><input type="checkbox" id="check-allow-spotify-playlist"> 📋 Spotify 플레이리스트 이전 허용</label>
+                <p class="help-text">플레이리스트 이전은 API 호출이 매우 많아 속도 제한(429)이 발생할 수 있습니다. 개인 Client ID 사용을 권장합니다.</p>
             </div>
             <div class="modal-close-btn">
                 <button id="btn-settings-close" class="btn btn-primary" style="width:100%" data-i18n="saveClose">Save &

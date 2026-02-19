@@ -141,18 +141,10 @@ class TidalAPI {
     }
 
     async getSessions(accessToken) {
-        try {
-            const data = await this.fetchProxy(`${this.apiBase}/users/me`, {
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-            const user = data.data || data;
-            return { userId: user.id, user_id: user.id, username: user.username || user.email };
-        } catch (e) {
-            console.warn('[TidalAPI] Failed to fetch /users/me, falling back to token parsing:', e.message);
-            const userId = this.parseUserIdFromToken(accessToken);
-            if (!userId) throw e;
-            return { userId, user_id: userId, username: `User ${userId}` };
-        }
+        // Parse user ID directly from JWT token (the /users/me endpoint returns 404)
+        const userId = this.parseUserIdFromToken(accessToken);
+        if (!userId) throw new Error('Failed to parse user ID from token');
+        return { userId, user_id: userId, username: `User ${userId}` };
     }
 
     _collectionType(type) {

@@ -36,7 +36,7 @@ class App {
         const savedVersion = localStorage.getItem('tidal_v2_version');
         if (savedVersion !== currentVersion) {
             const preserved = {};
-            ['tidal_v2_session_source', 'tidal_v2_session_target', 'qobuz_v2_session_target', 'spotify_v2_session_target', 'tidal_v2_target_service'].forEach((k) => {
+            ['tidal_v2_session_source', 'tidal_v2_session_target', 'qobuz_v2_session_target', 'spotify_v2_session_target', 'tidal_v2_target_service', 'tidal_v2_debug_mode', 'tidal_v2_allow_spotify_playlist'].forEach((k) => {
                 const v = localStorage.getItem(k);
                 if (v) preserved[k] = v;
             });
@@ -62,6 +62,7 @@ class App {
         this.initUI();
         this.loadSessions();
         this.handleCallback();
+        this.applyDebugMode();
     }
 
     t(key, vars) { return I18n.t(key, vars || {}); }
@@ -159,7 +160,20 @@ class App {
         const serviceRadios = document.querySelectorAll('input[name="target-service"]');
         serviceRadios.forEach(radio => {
             if (radio.value === this.targetService) radio.checked = true;
-            radio.onchange = (e) => this.switchTargetService(e.target.value);
+            radio.onchange = (e) => {
+                if (e.target.value === 'qobuz') {
+                    alert('⚠️ Qobuz는 아직 실험적 지원입니다.\n일부 기능이 정상 동작하지 않을 수 있습니다.');
+                }
+                if (e.target.value === 'spotify' && !this._shownSpotifyGuide) {
+                    this._shownSpotifyGuide = true;
+                    alert('⚠️ Spotify 설정 및 안내\n\n' +
+                        'Spotify는 API 정책상 개인 Client ID 등록이 반드시 필요합니다.\n' +
+                        'Spotify 패널 하단의 "⚙️ Use Custom Client ID" 메뉴를 통해 본인의 ID를 설정해 주세요.\n\n' +
+                        '기본 ID 사용 시 다른 사용자와 할당량을 공유하게 되어,\n' +
+                        '속도 제한(429)으로 인한 오류가 발생할 확률이 매우 높습니다.');
+                }
+                this.switchTargetService(e.target.value);
+            };
         });
         this.switchTargetService(this.targetService);
 
@@ -171,7 +185,7 @@ class App {
 
         document.getElementById('btn-settings').onclick = () => {
             const pw = prompt('Password:');
-            if (pw === 'admib') {
+            if (pw === 'admin') {
                 this.toggleModal('settings-modal', true);
             } else if (pw !== null) {
                 alert('Invalid password');
@@ -189,6 +203,41 @@ class App {
         document.getElementById('btn-test-transfer').onclick = () => this.startTransfer({ isTest: true });
         document.getElementById('btn-download-json').onclick = () => this.downloadJson();
         document.getElementById('input-json-file').onchange = (e) => this.restoreFromJson(e);
+
+        // Playlist checkbox warning for cross-service transfers
+        document.getElementById('check-playlists').onchange = (e) => {
+            if (!e.target.checked) return;
+            const sourceService = this.accounts.source?.service || 'tidal';
+            const targetService = this.accounts.target?.service || this.targetService;
+            if (sourceService === targetService) return;
+
+            // Block Spotify playlists unless setting is enabled
+            if (targetService === 'spotify' && localStorage.getItem('tidal_v2_allow_spotify_playlist') !== '1') {
+                alert('⛔ Spotify 플레이리스트 이전이 비활성화되어 있습니다.\n\n' +
+                    '설정(⚙️) → "📋 Spotify 플레이리스트 이전 허용" 을 켜주세요.\n' +
+                    '개인 Client ID 등록 후 사용을 강력히 권장합니다.');
+                e.target.checked = false;
+                return;
+            }
+
+            // Estimate time: count total tracks across all playlists
+            const playlists = this.accounts.source?.playlists || [];
+            const totalTracks = playlists.reduce((sum, p) => sum + (p.numberOfTracks || p.item?.numberOfTracks || 0), 0);
+            const estimatedSeconds = Math.ceil(totalTracks * 0.8);
+            const estimatedMin = Math.ceil(estimatedSeconds / 60);
+
+            const msg = `⚠️ 플레이리스트 이전 주의\n\n` +
+                `플레이리스트 ${playlists.length}개 (약 ${totalTracks}곡)\n` +
+                `예상 소요 시간: 약 ${estimatedMin}분\n\n` +
+                `각 곡을 개별 검색해야 하므로 시간이 오래 걸립니다.\n` +
+                `먼저 곡/앨범/아티스트를 이전한 후,\n` +
+                `플레이리스트는 따로 이전하는 것을 권장합니다.\n\n` +
+                `그래도 포함하시겠습니까?`;
+
+            if (!confirm(msg)) {
+                e.target.checked = false;
+            }
+        };
 
         const btnCopyReport = document.getElementById('btn-copy-report');
         if (btnCopyReport) btnCopyReport.onclick = () => this.copyFailureReport();
@@ -226,12 +275,36 @@ class App {
     }
 
     saveSettings() {
-        this.clientId = document.getElementById('input-client-id').value;
-        localStorage.setItem('tidal_v2_client_id', this.clientId);
-        this.api.clientId = this.clientId;
-        const manualToken = document.getElementById('input-manual-token').value;
-        if (manualToken) this.handleAuthSuccess('source', { access_token: manualToken });
+        // Save debug mode
+        const debugMode = document.getElementById('check-debug-mode').checked;
+        localStorage.setItem('tidal_v2_debug_mode', debugMode ? '1' : '0');
+        this.applyDebugMode();
+
+        // Save Spotify playlist setting
+        const allowSpotifyPlaylist = document.getElementById('check-allow-spotify-playlist').checked;
+        localStorage.setItem('tidal_v2_allow_spotify_playlist', allowSpotifyPlaylist ? '1' : '0');
+
         this.toggleModal('settings-modal', false);
+    }
+
+    applyDebugMode() {
+        const debugMode = localStorage.getItem('tidal_v2_debug_mode') === '1';
+        document.getElementById('check-debug-mode').checked = debugMode;
+
+        const btnTest = document.getElementById('btn-test-transfer');
+        const debugSection = document.getElementById('debug-section');
+
+        if (debugMode) {
+            btnTest.classList.remove('hidden');
+            debugSection.classList.remove('hidden');
+        } else {
+            btnTest.classList.add('hidden');
+            debugSection.classList.add('hidden');
+        }
+
+        // Restore Spotify playlist setting
+        const allowSpotifyPlaylist = localStorage.getItem('tidal_v2_allow_spotify_playlist') === '1';
+        document.getElementById('check-allow-spotify-playlist').checked = allowSpotifyPlaylist;
     }
 
     switchTargetService(service) {
@@ -245,6 +318,14 @@ class App {
 
         // Hide everything first
         [targetTidal, targetQobuz, targetSpotify, targetProfile].forEach(el => el.classList.add('hidden'));
+
+        // Cross-service: uncheck playlists by default (they take very long)
+        const sourceService = this.accounts.source?.service || 'tidal';
+        const isCrossService = service !== sourceService;
+        const playlistCheckbox = document.getElementById('check-playlists');
+        if (isCrossService) {
+            playlistCheckbox.checked = false;
+        }
 
         // Show the appropriate container
         const account = this.accounts.target;
@@ -656,6 +737,43 @@ class App {
         const targetAccount = this.accounts.target;
         const targetService = targetAccount.service || 'tidal';
 
+        // Estimate total time and confirm with user
+        if (!isTest) {
+            const sourceService = this.accounts.source?.service || 'tidal';
+            const isCrossService = sourceService !== targetService;
+            let totalApiCalls = 0;
+            const breakdown = [];
+
+            types.forEach(t => {
+                const list = this.accounts.source[t] || [];
+                if (t === 'playlists' && isCrossService) {
+                    const totalTracks = list.reduce((sum, p) => sum + (p.numberOfTracks || p.item?.numberOfTracks || 0), 0);
+                    totalApiCalls += list.length + totalTracks; // create + search each track
+                    breakdown.push(`📋 플레이리스트 ${list.length}개 (${totalTracks}곡 검색)`);
+                } else {
+                    totalApiCalls += list.length;
+                    const emoji = { tracks: '🎵', albums: '📀', artists: '🎤', playlists: '📋' }[t] || '';
+                    breakdown.push(`${emoji} ${this.t(t)} ${list.length}개`);
+                }
+            });
+
+            const secPerCall = isCrossService ? 0.8 : 0.2;
+            const estimatedMin = Math.ceil((totalApiCalls * secPerCall) / 60);
+
+            if (totalApiCalls === 0) {
+                alert(this.t('nothingToTransfer'));
+                return;
+            }
+
+            const msg = `📊 이전 예상 정보\n\n` +
+                breakdown.join('\n') + '\n\n' +
+                `총 API 호출: ${totalApiCalls}회\n` +
+                `예상 소요 시간: 약 ${estimatedMin}분\n\n` +
+                `진행하시겠습니까?`;
+
+            if (!confirm(msg)) return;
+        }
+
         const section = document.getElementById('progress-section');
         const bar = document.getElementById('progress-bar');
         const status = document.getElementById('progress-status');
@@ -692,6 +810,20 @@ class App {
         };
 
         if (isTest) addLog('🧪 TEST MODE: Transferring 1 item per type only.');
+
+        // Warn about default Spotify Client ID
+        if (targetService === 'spotify' && !localStorage.getItem('custom_spotify_client_id')) {
+            const proceed = confirm(
+                '⚠️ 기본 Spotify Client ID를 사용 중입니다.\n\n' +
+                '여러 사용자가 동시에 사용하면 속도 제한(429 에러)이 발생할 수 있습니다.\n' +
+                '안정적인 전송을 위해 개인 Client ID 등록을 권장합니다.\n\n' +
+                '그래도 계속하시겠습니까?'
+            );
+            if (!proceed) {
+                this.resetTransferUI();
+                return;
+            }
+        }
 
         let totalItems = 0;
         types.forEach(t => {
@@ -734,7 +866,7 @@ class App {
 
                 // Batch containers for Spotify
                 let spotifyBatch = [];
-                const SPOTIFY_BATCH_SIZE = 50;
+                const SPOTIFY_BATCH_SIZE = 40; // New /me/library API allows max 40 URIs per request
 
                 // Define the processing function for a single item
                 const processItem = async (entry) => {
@@ -782,21 +914,33 @@ class App {
 
                         if (success) {
                             // Detailed Success Log
-                            const artistInfo = extracted.artists ? ` by ${extracted.artists[0]}` : '';
+                            const artistInfo = extracted.artists?.length > 0 ? ` by ${extracted.artists[0]}` : '';
                             addLog(`✅ [${this.t('success')}] ${itemName}${artistInfo}${targetInfo}`);
                         } else {
                             // Search Failed Log
-                            const artistInfo = extracted.artists ? ` by ${extracted.artists[0]}` : '';
+                            const artistInfo = extracted.artists?.length > 0 ? ` by ${extracted.artists[0]}` : '';
                             addLog(`⚠️ [${this.t('skipped')}] ${itemName}${artistInfo} - Match not found`);
                             failureLogs.push({ op: 'transfer', type, name: itemName, id: extracted.id, error: 'Match not found' });
                         }
 
                     } catch (e) {
-                        const artistInfo = extracted.artists ? ` by ${extracted.artists[0]}` : '';
+                        const artistInfo = extracted.artists?.length > 0 ? ` by ${extracted.artists[0]}` : '';
                         const msg = `❌ [${this.t('failed')}] ${itemName}${artistInfo}: ${e.message}`;
                         addLog(msg);
                         failureLogs.push({ op: 'transfer', type, name: itemName, id: extracted.id, error: e.message });
                         success = false;
+
+                        // 429 → immediately abort transfer
+                        if (e.message.includes('429') || e.status === 429) {
+                            addLog('🛑 Spotify API 속도 제한(429) 발생 — 전송을 중단합니다.');
+                            addLog('💡 개인 Client ID를 등록하거나, 잠시 후 다시 시도하세요.');
+                            this.abortTransfer = true;
+                            alert('⛔ Spotify API 속도 제한(429)이 발생하여 전송을 중단합니다.\n\n' +
+                                '해결 방법:\n' +
+                                '1. 잠시(5~10분) 후 다시 시도\n' +
+                                '2. Spotify 패널 하단에서 개인 Client ID 등록\n\n' +
+                                '이미 전송된 항목은 유지됩니다.');
+                        }
                     } finally {
                         processedCount++;
                         const pct = Math.round((processedCount / totalItems) * 100);
@@ -851,6 +995,15 @@ class App {
                 } else {
                     status.textContent = this.t('transferComplete');
                 }
+            }
+
+            // Auto-refresh target stats after transfer
+            try {
+                addLog('🔄 Refreshing target library...');
+                await this.refreshStats('target');
+                addLog('✅ Target library updated.');
+            } catch (e) {
+                addLog(`⚠️ Target refresh failed: ${e.message}`);
             }
         }
     }
@@ -964,7 +1117,7 @@ class App {
                 this.accounts.source.tokens.access_token,
                 item.id
             );
-            addLog(`🔍 ${this.t('searchingFor', { name: tidalTracks.length })} tracks...`);
+            addLog(`🔍 ${this.t('searchingSpotify', { name: tidalTracks.length })} tracks...`);
 
             // 4. Match tracks on Spotify
             const trackUris = [];
@@ -991,6 +1144,13 @@ class App {
             return;
         }
 
+        // If source and target are both Spotify, skip search and use the existing ID
+        const sourceService = this.accounts.source?.service || 'tidal';
+        if (sourceService === 'spotify') {
+            addLog(`⚡ 동일 서비스(Spotify) 간 이동: 검색 생략 (${item.name})`);
+            return item.id;
+        }
+
         // 1. Search
         addLog(this.t('searchingSpotify', { name: item.name }));
         const searchTerms = item.artists && item.artists.length > 0 ? `${item.name} ${item.artists.join(' ')}` : item.name;
@@ -1007,8 +1167,8 @@ class App {
             addLog(`⚠️ No strong match found, using first result`);
             const fallback = results[0];
             addLog(`${this.t('matchFound')}: ${fallback.name}`);
-            await this.spotifyApi.addFavorite(targetAccount.tokens.access_token, type, fallback.id);
-            return;
+            // Return fallback ID for batch processing (don't call addFavorite directly)
+            return fallback.id;
         }
 
         addLog(`${this.t('matchFound')}: ${bestMatch.name} (${bestMatch.artists.join(', ')})`);

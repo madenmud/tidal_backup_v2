@@ -69,6 +69,8 @@ body {
 .help-content .usage-steps { margin: 0; padding-left: 1.5rem; }
 .help-content .usage-steps li { margin-bottom: 0.6rem; }
 .help-content .usage-steps li:last-child { margin-bottom: 0; }
+.help-content .usage-note { margin-top: 1rem; padding: 0.75rem 1rem; background: #fff3cd; border: 2px solid #ffc107; color: #856404; font-size: 0.85rem; line-height: 1.6; }
+@media (prefers-color-scheme: dark) { .help-content .usage-note { background: #332b00; border-color: #ffc107; color: #ffe066; } }
 
 /* Main */
 .main {

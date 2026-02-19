@@ -4,7 +4,7 @@
 class SpotifyAPI {
     constructor(clientId) {
         // Use provided clientId or fallback to default
-        this.clientId = clientId || 'fcecfc72172e4cd267473117a17cbd4d';
+        this.clientId = clientId || '79f5c780029145f6bad8aa88bfc74467';
         this.redirectUri = window.location.origin + window.location.pathname;
         if (this.redirectUri.endsWith('index.html')) {
             this.redirectUri = this.redirectUri.replace('index.html', '');
@@ -126,7 +126,7 @@ class SpotifyAPI {
         return data.access_token;
     }
 
-    async fetchProxy(url, options = {}, retries = 3) {
+    async fetchProxy(url, options = {}) {
         // Enforce Throttling
         const now = Date.now();
         const timeSinceLast = now - this.lastRequestTime;
@@ -135,52 +135,34 @@ class SpotifyAPI {
             await new Promise(r => setTimeout(r, wait));
         }
 
-        const separator = url.includes('?') ? '&' : '?';
         const targetUrl = `${this.proxyEndpoint}${encodeURIComponent(url)}`;
 
-        try {
-            this.lastRequestTime = Date.now(); // Update timestamp BEFORE fetch to stagger starts
-            const response = await fetch(targetUrl, {
-                method: options.method || 'GET',
-                headers: {
-                    ...options.headers
-                },
-                body: options.body
-            });
+        this.lastRequestTime = Date.now();
+        const response = await fetch(targetUrl, {
+            method: options.method || 'GET',
+            headers: { ...options.headers },
+            body: options.body
+        });
 
-            // Handle 429 Rate Limit
-            if (response.status === 429 && retries > 0) {
-                const retryAfterHeader = response.headers.get('Retry-After');
-                let delay = retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1000 : 5000; // Increase default to 5s
-
-                // Exponential backoff
-                const backoffFactor = Math.pow(2, 2 - retries);
-                delay = delay * backoffFactor + Math.random() * 1000;
-
-                // Increase minRequestDelay permanently
-                this.minRequestDelay = Math.min(this.minRequestDelay + 1000, 10000); // More aggressive backoff
-
-                console.warn(`[SpotifyAPI] Rate limited (429). Waiting ${Math.round(delay)}ms. Increasing interval to ${this.minRequestDelay}ms.`);
-
-                await new Promise(r => setTimeout(r, delay));
-                return this.fetchProxy(url, options, retries - 1);
-            }
-
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error_description || data.error?.message || data.error || `HTTP ${response.status}`);
-
-            // Success: slightly recover speed
-            // if (this.minRequestDelay > 800) this.minRequestDelay -= 10;
-
-            return data;
-        } catch (e) {
-            if (e.message.includes('429') && retries > 0) {
-                await new Promise(r => setTimeout(r, 6000));
-                return this.fetchProxy(url, options, retries - 1);
-            }
-            // If retries exhausted or other error, throw it so the app can skip this item
-            throw e;
+        // 429 Rate Limit → immediately throw (caller will stop transfer)
+        if (response.status === 429) {
+            const err = new Error('RATE_LIMITED_429');
+            err.status = 429;
+            throw err;
         }
+
+        // Handle empty responses (e.g., PUT /me/library returns 200 with empty body)
+        const text = await response.text();
+        let data = null;
+        if (text) {
+            try { data = JSON.parse(text); } catch (_) { data = null; }
+        }
+
+        if (!response.ok) {
+            throw new Error(data?.error_description || data?.error?.message || data?.error || `HTTP ${response.status}`);
+        }
+
+        return data;
     }
 
     async getUser(accessToken) {
@@ -233,15 +215,19 @@ class SpotifyAPI {
             return this.searchCache.get(cacheKey);
         }
 
-        const url = `${this.apiBase}/search?q=${encodeURIComponent(query)}&type=${type}&limit=10`;
+        // Spotify Search API requires singular type: track, album, artist, playlist
+        // But internally we use plural (tracks, albums, artists, playlists)
+        const singularTypeMap = { tracks: 'track', albums: 'album', artists: 'artist', playlists: 'playlist' };
+        const searchType = singularTypeMap[type] || type;
+
+        const url = `${this.apiBase}/search?q=${encodeURIComponent(query)}&type=${searchType}&limit=10`;
         const data = await this.fetchProxy(url, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
 
         // Parse results depending on type
-        // e.g. tracks -> data.tracks.items
-        const typeKey = type === 'tracks' ? 'tracks' : (type === 'albums' ? 'albums' : 'artists');
-        const results = data[typeKey]?.items || [];
+        // Response keys are plural: data.tracks.items, data.albums.items, data.artists.items, data.playlists.items
+        const results = data[type]?.items || [];
 
         const parsed = results.map(item => ({
             id: item.id,
@@ -261,10 +247,10 @@ class SpotifyAPI {
     /**
      * Find the best match from search results by comparing names
      * @param {Array} results - Search results from Spotify API
- * @param {Object} sourceItem - The original item { id, name, artists?, album? }
- * @param {string} type - Item type: 'tracks', 'albums', 'artists'
- * @returns {Object|null} Best match or null
- */
+     * @param {Object} sourceItem - The original item { id, name, artists?, album? }
+     * @param {string} type - Item type: 'tracks', 'albums', 'artists'
+     * @returns {Object|null} Best match or null
+     */
     findBestMatch(results, sourceItem, type) {
         if (!results || results.length === 0) return null;
 
@@ -331,39 +317,52 @@ class SpotifyAPI {
         const ids = Array.isArray(itemIds) ? itemIds : [itemIds];
         if (ids.length === 0) return;
 
-        let url = '';
-        let body = {};
+        // Spotify API uses different endpoints for different types
+        // Max batch size is usually 50 for these endpoints
+        const BATCH_SIZE = 50;
+        let result = null;
 
-        if (type === 'tracks') {
-            url = `${this.apiBase}/me/tracks`;
-            body = { ids: ids };
-        } else if (type === 'albums') {
-            url = `${this.apiBase}/me/albums`;
-            body = { ids: ids };
-        } else if (type === 'artists') {
-            url = `${this.apiBase}/me/following?type=artist`;
-            body = { ids: ids };
-        } else if (type === 'playlists') {
-            if (ids.length > 1) {
-                // If multiple playlists, we must call sequentially (no batch endpoint for following playlists)
-                // Use Promise.all for parallelism
-                return Promise.all(ids.map(id => this.addFavorite(accessToken, type, id)));
+        for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+            const batch = ids.slice(i, i + BATCH_SIZE);
+            const idsParam = batch.join(',');
+
+            let url = '';
+            let method = 'PUT';
+
+            if (type === 'tracks') {
+                url = `${this.apiBase}/me/tracks?ids=${idsParam}`;
+            } else if (type === 'albums') {
+                url = `${this.apiBase}/me/albums?ids=${idsParam}`;
+            } else if (type === 'artists') {
+                url = `${this.apiBase}/me/following?type=artist&ids=${idsParam}`;
+            } else if (type === 'playlists') {
+                // Following a playlist is done one by one
+                for (const playlistId of batch) {
+                    const pUrl = `${this.apiBase}/playlists/${playlistId}/followers`;
+                    await this.fetchProxy(pUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ public: false })
+                    });
+                }
+                continue;
             }
-            url = `${this.apiBase}/playlists/${ids[0]}/followers`;
-            body = { public: false };
-        } else {
-            console.warn(`[SpotifyAPI] Unsupported type for addFavorite: ${type}`);
-            return;
+
+            if (url) {
+                result = await this.fetchProxy(url, {
+                    method: method,
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+            }
         }
 
-        return this.fetchProxy(url, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(body)
-        });
+        return result;
     }
 
     /**
@@ -376,8 +375,11 @@ class SpotifyAPI {
      * @returns {Object} Created playlist object with id, uri, etc.
      */
     async createPlaylist(accessToken, userId, name, description = '', isPublic = false) {
-        // Use /me/playlists to avoid userID mismatch issues
-        const url = `${this.apiBase}/me/playlists`;
+        if (!userId) {
+            console.error('[SpotifyAPI] Cannot create playlist: userId is missing');
+            throw new Error('Spotify User ID is required to create a playlist');
+        }
+        const url = `${this.apiBase}/users/${userId}/playlists`;
         return this.fetchProxy(url, {
             method: 'POST',
             headers: {
@@ -422,4 +424,9 @@ class SpotifyAPI {
 
         return result;
     }
+}
+
+// Export for Node.js testing environment
+if (typeof module !== 'undefined') {
+    module.exports = SpotifyAPI;
 }
