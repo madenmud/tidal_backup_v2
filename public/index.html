@@ -1,18 +1,32 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tidal Backup V2 🤖</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=JetBrains+Mono:wght@500;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=JetBrains+Mono:wght@500;800&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
 </head>
+
 <body class="theme-brutalist">
+    <!-- Loading Overlay -->
+    <div id="full-loading-overlay" class="hidden"
+        style="position: fixed; inset: 0; background-color: rgba(0,0,0,0.7); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; backdrop-filter: blur(5px);">
+        <div class="loader" style="margin-bottom: 20px;"></div>
+        <div id="full-loading-text"
+            style="font-size: 1.5rem; font-weight: bold; text-transform: uppercase; letter-spacing: 2px;">Loading...
+        </div>
+    </div>
     <header class="header">
-        <h1 class="title"><span data-i18n="appTitle">Tidal Backup V2 🤖</span> <span class="version" id="build-version">-</span></h1>
+        <h1 class="title"><span data-i18n="appTitle">Tidal Backup V2 🤖</span> <span class="version"
+                id="build-version">-</span></h1>
         <div class="header-actions">
             <div class="lang-toggle">
                 <button id="btn-lang-ko" class="btn btn-xs">한글</button>
@@ -27,7 +41,11 @@
         <!-- Usage / Help Section -->
         <section id="help-section" class="help-section">
             <h2 class="section-title" data-i18n="usageTitle">사용법</h2>
-            <div class="help-content" data-i18n="usageSteps" data-i18n-html><ol class="usage-steps"><li>로딩...</li></ol></div>
+            <div class="help-content" data-i18n="usageSteps" data-i18n-html>
+                <ol class="usage-steps">
+                    <li>로딩...</li>
+                </ol>
+            </div>
         </section>
 
         <div class="dual-panel">
@@ -36,11 +54,14 @@
                 <h2 class="section-title" data-i18n="step1Title">Step 1: Source (Backup)</h2>
                 <div id="source-auth" class="auth-container">
                     <p class="desc" data-i18n="sourceDesc">Connect the account you want to copy FROM.</p>
-                    <button id="btn-source-login" class="btn btn-primary" data-i18n="connectAccountA">Connect Account A</button>
+                    <button id="btn-source-login" class="btn btn-primary" data-i18n="connectAccountA">Connect Account
+                        A</button>
                     <div id="source-device-flow" class="device-flow hidden">
                         <div class="user-code" id="source-user-code">---- ----</div>
-                        <p class="timer"><span data-i18n="waiting">Waiting...</span> <span id="source-timer">300</span>s</p>
-                        <button id="btn-source-popup" class="btn btn-sm" data-i18n="openTidalLogin">Open Tidal Login</button>
+                        <p class="timer"><span data-i18n="waiting">Waiting...</span> <span id="source-timer">300</span>s
+                        </p>
+                        <button id="btn-source-popup" class="btn btn-sm" data-i18n="openTidalLogin">Open Tidal
+                            Login</button>
                     </div>
                 </div>
                 <div id="source-profile" class="profile-container hidden">
@@ -53,7 +74,8 @@
                         <li><span data-i18n="tracks">Tracks</span>: <span id="source-stat-tracks">...</span></li>
                         <li><span data-i18n="artists">Artists</span>: <span id="source-stat-artists">...</span></li>
                         <li><span data-i18n="albums">Albums</span>: <span id="source-stat-albums">...</span></li>
-                        <li><span data-i18n="playlists">Playlists</span>: <span id="source-stat-playlists">...</span></li>
+                        <li><span data-i18n="playlists">Playlists</span>: <span id="source-stat-playlists">...</span>
+                        </li>
                     </ul>
                 </div>
             </section>
@@ -63,18 +85,32 @@
                 <div class="control-box">
                     <h3 class="box-title" data-i18n="transferTitle">Transfer Between Accounts</h3>
                     <div class="checkbox-group">
-                        <label class="checkbox-label"><input type="checkbox" id="check-playlists" checked> 📋 <span data-i18n="playlists">Playlists</span></label>
-                        <label class="checkbox-label"><input type="checkbox" id="check-tracks" checked> 🎵 <span data-i18n="tracks">Tracks</span></label>
-                        <label class="checkbox-label"><input type="checkbox" id="check-albums" checked> 📀 <span data-i18n="albums">Albums</span></label>
-                        <label class="checkbox-label"><input type="checkbox" id="check-artists" checked> 🎤 <span data-i18n="artists">Artists</span></label>
+                        <label class="checkbox-label"><input type="checkbox" id="check-playlists" checked> 📋 <span
+                                data-i18n="playlists">Playlists</span></label>
+                        <label class="checkbox-label"><input type="checkbox" id="check-tracks" checked> 🎵 <span
+                                data-i18n="tracks">Tracks</span></label>
+                        <label class="checkbox-label"><input type="checkbox" id="check-albums" checked> 📀 <span
+                                data-i18n="albums">Albums</span></label>
+                        <label class="checkbox-label"><input type="checkbox" id="check-artists" checked> 🎤 <span
+                                data-i18n="artists">Artists</span></label>
                     </div>
-                    <button id="btn-start-transfer" class="btn btn-primary btn-large" disabled data-i18n="startTransfer">Start Transfer ▶</button>
+                    <div class="flex gap-2">
+                        <button id="btn-start-transfer" class="btn btn-primary btn-large flex-1" disabled
+                            data-i18n="startTransfer">Start Transfer ▶</button>
+                        <button id="btn-stop-transfer" class="btn btn-danger btn-large hidden" data-i18n="stop">Stop
+                            ⏹</button>
+                    </div>
+                    <button id="btn-test-transfer" class="btn btn-secondary btn-sm mt-2 w-full hidden" disabled>🧪 Test
+                        (Transfer 1 Item)</button>
                     <hr class="divider">
                     <h3 class="box-title" data-i18n="backupRestoreTitle">Backup / Restore (JSON)</h3>
-                    <p class="desc-small" data-i18n="backupRestoreDesc">Download favorites as JSON or restore from file.</p>
+                    <p class="desc-small" data-i18n="backupRestoreDesc">Download favorites as JSON or restore from file.
+                    </p>
                     <div class="button-row">
-                        <button id="btn-download-json" class="btn btn-sm" disabled data-i18n="downloadJson">Download JSON</button>
-                        <label class="btn btn-sm btn-file"><input type="file" id="input-json-file" accept=".json" hidden> <span data-i18n="restoreFromJson">Restore from JSON</span></label>
+                        <button id="btn-download-json" class="btn btn-sm" disabled data-i18n="downloadJson">Download
+                            JSON</button>
+                        <label class="btn btn-sm btn-file"><input type="file" id="input-json-file" accept=".json"
+                                hidden> <span data-i18n="restoreFromJson">Restore from JSON</span></label>
                     </div>
                 </div>
             </section>
@@ -82,23 +118,28 @@
             <!-- Target Panel -->
             <section class="panel target-panel">
                 <h2 class="section-title" data-i18n="step2Title">Step 2: Target (Restore)</h2>
-                
+
                 <!-- Service Selector -->
                 <div class="service-selector">
-                    <label class="radio-label"><input type="radio" name="target-service" value="tidal" checked> Tidal</label>
+                    <label class="radio-label"><input type="radio" name="target-service" value="tidal" checked>
+                        Tidal</label>
                     <label class="radio-label"><input type="radio" name="target-service" value="qobuz"> Qobuz</label>
-                    <label class="radio-label"><input type="radio" name="target-service" value="spotify"> Spotify</label>
+                    <label class="radio-label"><input type="radio" name="target-service" value="spotify">
+                        Spotify</label>
                 </div>
 
                 <!-- Tidal Target Auth -->
                 <div id="target-tidal-container">
                     <div id="target-auth" class="auth-container">
                         <p class="desc" data-i18n="targetDesc">Connect the account you want to copy TO.</p>
-                        <button id="btn-target-login" class="btn btn-primary" data-i18n="connectAccountB">Connect Account B</button>
+                        <button id="btn-target-login" class="btn btn-primary" data-i18n="connectAccountB">Connect
+                            Account B</button>
                         <div id="target-device-flow" class="device-flow hidden">
                             <div class="user-code" id="target-user-code">---- ----</div>
-                            <p class="timer"><span data-i18n="waiting">Waiting...</span> <span id="target-timer">300</span>s</p>
-                            <button id="btn-target-popup" class="btn btn-sm" data-i18n="openTidalLogin">Open Tidal Login</button>
+                            <p class="timer"><span data-i18n="waiting">Waiting...</span> <span
+                                    id="target-timer">300</span>s</p>
+                            <button id="btn-target-popup" class="btn btn-sm" data-i18n="openTidalLogin">Open Tidal
+                                Login</button>
                         </div>
                     </div>
                 </div>
@@ -119,7 +160,17 @@
                 <div id="target-spotify-container" class="hidden">
                     <div class="auth-container">
                         <p class="desc" data-i18n="spotifyLoginDesc">Connect your Spotify account.</p>
-                        <button id="btn-spotify-login" class="btn btn-primary" data-i18n="connectSpotify">Connect Spotify</button>
+                        <button id="btn-spotify-login" class="btn btn-primary" data-i18n="connectSpotify">Connect
+                            Spotify</button>
+                        <div id="spotify-api-status" class="api-status hidden"
+                            style="margin-top: 5px; font-size: 0.85em;">
+                            <span class="status-indicator"></span> <span class="status-text"></span>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <a href="#" id="btn-open-spotify-settings"
+                                style="font-size: 0.9em; text-decoration: underline; color: #666;">⚙️ Use Custom Client
+                                ID (Avoid Rate Limits)</a>
+                        </div>
                     </div>
                 </div>
 
@@ -133,14 +184,15 @@
                         <li><span data-i18n="tracks">Tracks</span>: <span id="target-stat-tracks">...</span></li>
                         <li><span data-i18n="artists">Artists</span>: <span id="target-stat-artists">...</span></li>
                         <li><span data-i18n="albums">Albums</span>: <span id="target-stat-albums">...</span></li>
-                        <li><span data-i18n="playlists">Playlists</span>: <span id="target-stat-playlists">...</span></li>
+                        <li><span data-i18n="playlists">Playlists</span>: <span id="target-stat-playlists">...</span>
+                        </li>
                     </ul>
                 </div>
             </section>
         </div>
 
         <!-- Progress Section -->
-        <section id="progress-section" class="section progress-section hidden">
+        <section id="progress-section" class="section progress-section">
             <h2 class="section-title" data-i18n="transferStatus">Transfer Status</h2>
             <div class="progress-row">
                 <div class="progress-bar-container">
@@ -156,7 +208,7 @@
         </section>
 
         <!-- Debug Section -->
-        <section id="debug-section" class="section debug-section">
+        <section id="debug-section" class="section debug-section hidden">
             <h2 class="section-title">Debug Logs 🛠️</h2>
             <div id="debug-container" class="debug-container">
                 <div>[System] Debug logger initialized. Waiting for actions...</div>
@@ -173,39 +225,67 @@
         <div class="modal-content">
             <h2 data-i18n="settings">Settings ⚙️</h2>
             <div class="settings-group">
-                <label data-i18n="clientIdPreset">Client ID Preset</label>
-                <p class="help-text" data-i18n="clientIdHelp" data-i18n-html>Tidal may revoke IDs...</p>
-                <div class="id-grid">
-                    <button class="btn btn-xs preset-id" data-id="fX2JxdmntZWK0ixT">Current (2026)</button>
-                    <button class="btn btn-xs preset-id" data-id="pUBRShyxR8fkaI0D">Web (Legacy)</button>
-                    <button class="btn btn-xs preset-id" data-id="c8jBkoXz1aY5Y0LG">Desktop</button>
-                    <button class="btn btn-xs preset-id" data-id="VSVaDz8Ky1V7o1f6">Android</button>
-                    <button class="btn btn-xs preset-id" data-id="H9iEbAVflp2n8j2L">FireTV</button>
-                </div>
-                <input type="text" id="input-client-id" class="input" value="fX2JxdmntZWK0ixT">
+                <label><input type="checkbox" id="check-debug-mode"> 🛠️ Debug Mode (Show test button &amp; debug
+                    logs)</label>
             </div>
             <div class="settings-group">
-                <label data-i18n="manualToken">Manual Access Token (Emergency)</label>
-                <input type="text" id="input-manual-token" class="input" data-i18n-placeholder="manualTokenPlaceholder">
-                <p class="help-text" data-i18n="manualTokenHelp">Only use if automatic login fails repeatedly.</p>
+                <label><input type="checkbox" id="check-allow-spotify-playlist"> 📋 Spotify 플레이리스트 이전 허용</label>
+                <p class="help-text">플레이리스트 이전은 API 호출이 매우 많아 속도 제한(429)이 발생할 수 있습니다. 개인 Client ID 사용을 권장합니다.</p>
             </div>
             <div class="modal-close-btn">
-                <button id="btn-settings-close" class="btn btn-primary" style="width:100%" data-i18n="saveClose">Save & Close</button>
+                <button id="btn-settings-close" class="btn btn-primary" style="width:100%" data-i18n="saveClose">Save &
+                    Close</button>
             </div>
         </div>
     </div>
 
-    <script src="js/version.js?v=mlrvhz1k"></script>
-    <script src="js/i18n.js?v=mlrvhz1k"></script>
-    <script src="js/tidal-api.js?v=mlrvhz1k"></script>
-    <script src="js/qobuz-api.js?v=mlrvhz1k"></script>
-    <script src="js/spotify-api.js?v=mlrvhz1k"></script>
-    <script src="js/app.js?v=mlrvhz1k"></script>
-    
-    <!-- Vercel Speed Insights -->
-    <script>
-        window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
-    </script>
-    <script defer src="/_vercel/speed-insights/script.js"></script>
+    </div>
+
+    <!-- Spotify Settings Modal -->
+    <div id="spotify-settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Spotify Settings</h3>
+            <p class="desc-small">Using your own Client ID helps to significantly reduce rate limits.</p>
+
+            <label data-i18n="customClientId">Client ID:</label>
+            <div style="display: flex; gap: 5px;">
+                <input type="password" id="input-spotify-client-id" class="input-text"
+                    placeholder="Paste your Client ID here" style="flex: 1;">
+                <button id="btn-toggle-visibility" class="btn btn-secondary" style="padding: 0 10px;">👁️</button>
+            </div>
+
+            <div class="guide-box"
+                style="margin-top: 15px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 5px; font-size: 0.9em; color: #333;">
+                <strong>How to get a Client ID:</strong>
+                <ol style="margin-left: 20px; list-style-type: decimal; margin-bottom: 0;">
+                    <li>Go to <a href="https://developer.spotify.com/dashboard" target="_blank">Spotify Developer
+                            Dashboard</a>.</li>
+                    <li>Log in and click "Create App".</li>
+                    <li>Enter any App Name (e.g., "Generic Transfer") and Description.</li>
+                    <li>In the App Settings, add this Redirect URI: <br><code
+                            style="background: #eee; padding: 2px 5px; border-radius: 3px; user-select: all;"
+                            id="spotify-redirect-uri"></code></li>
+                    <li>Copy the <strong>Client ID</strong> from the dashboard and paste it above.</li>
+                    <li>Click Save & Reload below.</li>
+                </ol>
+            </div>
+
+            <div class="flex gap-2 mt-4 justify-end">
+                <button id="btn-spotify-cancel" class="btn btn-secondary">Cancel</button>
+                <button id="btn-spotify-save" class="btn btn-primary">Save & Reload</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/version.js?v=mlrvhz1k_v2"></script>
+    <script src="js/i18n.js?v=mlrvhz1k_v2"></script>
+    <script src="js/tidal-api.js?v=mlrvhz1k_v2"></script>
+    <script src="js/qobuz-api.js?v=mlrvhz1k_v2"></script>
+    <script src="js/spotify-api.js?v=mlrvhz1k_v2"></script>
+    <script type="module" src="js/app.js?v=mlrvhz1k_v2"></script>
+
+    <!-- Vercel Speed Insights (Disabled for Local Dev) -->
+    <!-- <script defer src="/_vercel/speed-insights/script.js"></script> -->
 </body>
+
 </html>

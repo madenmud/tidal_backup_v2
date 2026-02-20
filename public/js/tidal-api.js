@@ -31,17 +31,29 @@ class TidalAPI {
 
         try {
             const response = await fetch(targetUrl, { method: options.method || 'GET', headers, body });
-            let data;
-            try {
-                data = await response.json();
-            } catch (parseErr) {
-                if (!response.ok && (response.status === 404 || response.status === 403)) {
-                    const err = new Error(`HTTP ${response.status}`);
-                    err.status = response.status;
-                    throw err;
+            let data = {};
+
+            // Check for empty response (204 No Content or Content-Length: 0)
+            const contentLength = response.headers.get('Content-Length');
+            if (response.status === 204 || (contentLength && parseInt(contentLength) === 0)) {
+                // Empty body is fine
+            } else {
+                try {
+                    const text = await response.text();
+                    if (text && text.trim().length > 0) {
+                        data = JSON.parse(text);
+                    }
+                } catch (parseErr) {
+                    if (!response.ok && (response.status === 404 || response.status === 403)) {
+                        const err = new Error(`HTTP ${response.status}`);
+                        err.status = response.status;
+                        throw err;
+                    }
+                    // If response is OK but parsing failed, it might be an empty body that wasn't caught
+                    if (!response.ok) throw parseErr;
                 }
-                throw parseErr;
             }
+
             if (!response.ok) {
                 const status = response.status;
                 const errMsg = (status === 404 || status === 403) ? `HTTP ${status}` : (data.errors?.[0]?.detail || data.error_description || (data.error && data.message ? `${data.error}: ${data.message}` : data.error || data.message) || `HTTP ${status}`);
@@ -118,12 +130,21 @@ class TidalAPI {
         });
     }
 
+    parseUserIdFromToken(token) {
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            return payload.uid || payload.sub || payload.user_id;
+        } catch (e) {
+            console.warn('[TidalAPI] Failed to parse token:', e);
+            return null;
+        }
+    }
+
     async getSessions(accessToken) {
-        const data = await this.fetchProxy(`${this.apiBase}/users/me`, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-        const user = data.data || data;
-        return { userId: user.id, user_id: user.id };
+        // Parse user ID directly from JWT token (the /users/me endpoint returns 404)
+        const userId = this.parseUserIdFromToken(accessToken);
+        if (!userId) throw new Error('Failed to parse user ID from token');
+        return { userId, user_id: userId, username: `User ${userId}` };
     }
 
     _collectionType(type) {
@@ -316,8 +337,12 @@ class TidalAPI {
         let hasMore = true;
 
         try {
+            // Get session for country code
+            const session = await this.getLegacySession(accessToken);
+            const countryCode = session.countryCode || 'US';
+
             while (hasMore) {
-                const url = `${this.legacyApiBase}/playlists/${playlistId}/items?limit=${limit}&offset=${offset}`;
+                const url = `${this.legacyApiBase}/playlists/${playlistId}/items?countryCode=${countryCode}&limit=${limit}&offset=${offset}`;
                 const data = await this.fetchProxy(url, {
                     headers: {
                         'Authorization': `Bearer ${accessToken}`,
@@ -341,7 +366,6 @@ class TidalAPI {
                         }
                     }
                 }
-
                 const total = data.totalNumberOfItems ?? tracks.length;
                 offset += limit;
                 hasMore = offset < total && data.items && data.items.length === limit;
@@ -361,7 +385,11 @@ class TidalAPI {
      * @returns {Promise<Object>} Playlist object with id, name, description, etc.
      */
     async getPlaylist(accessToken, playlistId) {
-        const url = `${this.legacyApiBase}/playlists/${playlistId}`;
+        // Get session for country code
+        const session = await this.getLegacySession(accessToken);
+        const countryCode = session.countryCode || 'US';
+
+        const url = `${this.legacyApiBase}/playlists/${playlistId}?countryCode=${countryCode}`;
         return this.fetchProxy(url, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,

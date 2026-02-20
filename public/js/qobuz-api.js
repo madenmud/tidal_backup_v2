@@ -4,7 +4,7 @@
 class QobuzAPI {
     constructor() {
         this.appId = '231339556'; // Generic public App ID
-        this.appSecret = ''; 
+        this.appSecret = '';
         this.apiBase = 'https://www.qobuz.com/api.json/0.2';
         this.proxyEndpoint = '/api/proxy?url=';
     }
@@ -12,7 +12,7 @@ class QobuzAPI {
     async fetchProxy(url, options = {}) {
         const separator = url.includes('?') ? '&' : '?';
         const targetUrl = `${this.proxyEndpoint}${encodeURIComponent(url + separator + 'app_id=' + this.appId)}`;
-        
+
         const response = await fetch(targetUrl, {
             method: options.method || 'GET',
             headers: {
@@ -45,7 +45,7 @@ class QobuzAPI {
         const data = await this.fetchProxy(url, {
             headers: { 'x-user-auth-token': userAuthToken }
         });
-        
+
         return this._parseFavorites(data, type);
     }
 
@@ -72,6 +72,32 @@ class QobuzAPI {
         const url = `${this.apiBase}/favorite/create?user_id=${userId}&item_id=${itemId}&type=${qType}`;
         return this.fetchProxy(url, {
             method: 'GET', // Qobuz favorite/create is often GET with params
+            headers: { 'x-user-auth-token': userAuthToken }
+        });
+    }
+
+    /**
+     * Create a new playlist on Qobuz
+     * POST /playlist/create
+     */
+    async createPlaylist(userAuthToken, name, isPublic = true) {
+        const url = `${this.apiBase}/playlist/create?name=${encodeURIComponent(name)}&public=${isPublic ? 1 : 0}`;
+        return this.fetchProxy(url, {
+            method: 'GET', // Qobuz API often uses GET for creation too, checking docs/behavior
+            headers: { 'x-user-auth-token': userAuthToken }
+        });
+    }
+
+    /**
+     * Add tracks to a Qobuz playlist
+     * GET /playlist/addTracks?playlist_id=...&track_ids=...
+     */
+    async addTracksToPlaylist(userAuthToken, playlistId, trackIds) {
+        // trackIds is comma-separated string
+        const ids = trackIds.join(',');
+        const url = `${this.apiBase}/playlist/addTracks?playlist_id=${playlistId}&track_ids=${ids}`;
+        return this.fetchProxy(url, {
+            method: 'GET',
             headers: { 'x-user-auth-token': userAuthToken }
         });
     }

@@ -2,45 +2,166 @@
  * Spotify API Wrapper
  */
 class SpotifyAPI {
-    constructor() {
-        this.clientId = '0bb116db2a324fe7afe09aadb8493c1e'; // Updated Client ID
+    constructor(clientId) {
+        // Use provided clientId or fallback to default
+        this.clientId = clientId || '79f5c780029145f6bad8aa88bfc74467';
         this.redirectUri = window.location.origin + window.location.pathname;
         if (this.redirectUri.endsWith('index.html')) {
             this.redirectUri = this.redirectUri.replace('index.html', '');
         }
         if (!this.redirectUri.endsWith('/')) {
-            this.redirectUri += '/';
+            this.redirectUri = this.redirectUri.replace(/\/$/, '') + '/';
         }
+        console.log('[SpotifyAPI] Init with Client ID:', this.clientId);
         console.log('[SpotifyAPI] Redirect URI:', this.redirectUri);
+
         this.apiBase = 'https://api.spotify.com/v1';
         this.authBase = 'https://accounts.spotify.com/authorize';
         this.proxyEndpoint = '/api/proxy?url=';
+
+        // Throttling State
+        this.lastRequestTime = 0;
+        this.minRequestDelay = 800; // Force 800ms delay between ALL requests
+
+        // Cache
+        this.searchCache = new Map();
     }
 
-    getAuthUrl() {
+    async checkHealth(accessToken) {
+        if (!accessToken) return { status: 'unknown', message: 'No token' };
+        try {
+            const start = Date.now();
+            // Using /me is safest lightweight call
+            const response = await fetch(`${this.apiBase}/me`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            const duration = Date.now() - start;
+
+            if (response.status === 429) {
+                return { status: 'bad', code: 429, message: 'Rate Limit Exceeded' };
+            }
+            if (!response.ok) {
+                return { status: 'error', code: response.status, message: response.statusText };
+            }
+            // If response is slow (> 2s), warn user
+            if (duration > 2000) {
+                return { status: 'slow', duration, message: 'API response is slow' };
+            }
+            return { status: 'good', duration, message: 'OK' };
+        } catch (e) {
+            return { status: 'error', message: e.message };
+        }
+    }
+
+    async getAuthUrlPKCE() {
+        if (!this.clientId || this.clientId.length < 10) {
+            alert('Error: Missing Spotify Client ID in public/js/spotify-api.js\n\nPlease add your Client ID from the Spotify Dashboard.');
+            throw new Error('Missing Client ID');
+        }
+        // PKCE Flow Helpers
+        const generateRandomString = (length) => {
+            const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            const values = crypto.getRandomValues(new Uint8Array(length));
+            return values.reduce((acc, x) => acc + possible[x % possible.length], "");
+        };
+        const sha256 = async (plain) => {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(plain);
+            return window.crypto.subtle.digest('SHA-256', data);
+        };
+        const base64encode = (input) => {
+            return btoa(String.fromCharCode(...new Uint8Array(input)))
+                .replace(/=/g, '')
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_');
+        };
+
+        const codeVerifier = generateRandomString(64);
+        const hashed = await sha256(codeVerifier);
+        const codeChallenge = base64encode(hashed);
+
+        localStorage.setItem('spotify_pkce_verifier', codeVerifier);
+
         const scopes = [
             'user-library-read',
             'user-library-modify',
             'playlist-read-private',
             'playlist-modify-public',
-            'playlist-modify-private'
+            'playlist-modify-private',
+            'user-follow-read',
+            'user-follow-modify'
         ].join(' ');
-        
-        return `${this.authBase}?client_id=${this.clientId}&response_type=token&redirect_uri=${encodeURIComponent(this.redirectUri)}&scope=${encodeURIComponent(scopes)}&show_dialog=true`;
+
+        const params = new URLSearchParams({
+            client_id: this.clientId,
+            response_type: 'code',
+            redirect_uri: this.redirectUri,
+            scope: scopes,
+            code_challenge_method: 'S256',
+            code_challenge: codeChallenge,
+            show_dialog: 'true'
+        });
+
+        return `${this.authBase}?${params.toString()}`;
+    }
+
+    async getAccessToken(code) {
+        const verifier = localStorage.getItem('spotify_pkce_verifier');
+        if (!verifier) throw new Error('No PKCE verifier found');
+
+        const params = new URLSearchParams({
+            client_id: this.clientId,
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: this.redirectUri,
+            code_verifier: verifier,
+        });
+
+        const data = await this.fetchProxy('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params.toString()
+        });
+
+        return data.access_token;
     }
 
     async fetchProxy(url, options = {}) {
+        // Enforce Throttling
+        const now = Date.now();
+        const timeSinceLast = now - this.lastRequestTime;
+        if (timeSinceLast < this.minRequestDelay) {
+            const wait = this.minRequestDelay - timeSinceLast;
+            await new Promise(r => setTimeout(r, wait));
+        }
+
         const targetUrl = `${this.proxyEndpoint}${encodeURIComponent(url)}`;
+
+        this.lastRequestTime = Date.now();
         const response = await fetch(targetUrl, {
             method: options.method || 'GET',
-            headers: {
-                ...options.headers
-            },
+            headers: { ...options.headers },
             body: options.body
         });
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error?.message || data.error || `HTTP ${response.status}`);
+        // 429 Rate Limit → immediately throw (caller will stop transfer)
+        if (response.status === 429) {
+            const err = new Error('RATE_LIMITED_429');
+            err.status = 429;
+            throw err;
+        }
+
+        // Handle empty responses (e.g., PUT /me/library returns 200 with empty body)
+        const text = await response.text();
+        let data = null;
+        if (text) {
+            try { data = JSON.parse(text); } catch (_) { data = null; }
+        }
+
+        if (!response.ok) {
+            throw new Error(data?.error_description || data?.error?.message || data?.error || `HTTP ${response.status}`);
+        }
+
         return data;
     }
 
@@ -88,21 +209,39 @@ class SpotifyAPI {
     }
 
     async search(accessToken, query, type) {
-        const qType = type === 'tracks' ? 'track' : type.slice(0, -1);
-        const url = `${this.apiBase}/search?q=${encodeURIComponent(query)}&type=${qType}&limit=10`;
+        const cacheKey = `${type}:${query}`;
+        if (this.searchCache.has(cacheKey)) {
+            // console.log(`[SpotifyAPI] Cache hit for: ${query}`);
+            return this.searchCache.get(cacheKey);
+        }
+
+        // Spotify Search API requires singular type: track, album, artist, playlist
+        // But internally we use plural (tracks, albums, artists, playlists)
+        const singularTypeMap = { tracks: 'track', albums: 'album', artists: 'artist', playlists: 'playlist' };
+        const searchType = singularTypeMap[type] || type;
+
+        const url = `${this.apiBase}/search?q=${encodeURIComponent(query)}&type=${searchType}&limit=10`;
         const data = await this.fetchProxy(url, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
-        const items = data[qType + 's']?.items || [];
-        
-        return items.map(item => ({
+
+        // Parse results depending on type
+        // Response keys are plural: data.tracks.items, data.albums.items, data.artists.items, data.playlists.items
+        const results = data[type]?.items || [];
+
+        const parsed = results.map(item => ({
             id: item.id,
             name: item.name,
             uri: item.uri,
             artists: item.artists?.map(a => a.name) || [],
-            album: item.album?.name || null,
-            albumArtists: item.artists?.map(a => a.name) || []
+            album: item.album?.name || null
         }));
+
+        // Cache the parsed results
+        if (this.searchCache.size > 2000) this.searchCache.clear();
+        this.searchCache.set(cacheKey, parsed);
+
+        return parsed;
     }
 
     /**
@@ -149,7 +288,7 @@ class SpotifyAPI {
             if (type === 'tracks' || type === 'albums') {
                 const resultArtists = (result.artists || result.albumArtists || []).map(normalize);
                 if (sourceArtists.length > 0 && resultArtists.length > 0) {
-                    const artistMatch = sourceArtists.some(sa => 
+                    const artistMatch = sourceArtists.some(sa =>
                         resultArtists.some(ra => ra && (sa === ra || sa.includes(ra) || ra.includes(sa)))
                     );
                     if (artistMatch) score += 30;
@@ -173,24 +312,57 @@ class SpotifyAPI {
         return bestScore >= 40 ? bestMatch : null;
     }
 
-    async addFavorite(accessToken, type, itemId) {
-        let url = '';
-        let method = 'PUT';
-        let body = undefined;
+    async addFavorite(accessToken, type, itemIds) {
+        // Normalize to array
+        const ids = Array.isArray(itemIds) ? itemIds : [itemIds];
+        if (ids.length === 0) return;
 
-        if (type === 'tracks') url = `${this.apiBase}/me/tracks?ids=${itemId}`;
-        else if (type === 'albums') url = `${this.apiBase}/me/albums?ids=${itemId}`;
-        else if (type === 'artists') url = `${this.apiBase}/me/following?type=artist&ids=${itemId}`;
-        else if (type === 'playlists') {
-            // Adding to "Saved Playlists" is actually "Follow"
-            url = `${this.apiBase}/playlists/${itemId}/followers`;
+        // Spotify API uses different endpoints for different types
+        // Max batch size is usually 50 for these endpoints
+        const BATCH_SIZE = 50;
+        let result = null;
+
+        for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+            const batch = ids.slice(i, i + BATCH_SIZE);
+            const idsParam = batch.join(',');
+
+            let url = '';
+            let method = 'PUT';
+
+            if (type === 'tracks') {
+                url = `${this.apiBase}/me/tracks?ids=${idsParam}`;
+            } else if (type === 'albums') {
+                url = `${this.apiBase}/me/albums?ids=${idsParam}`;
+            } else if (type === 'artists') {
+                url = `${this.apiBase}/me/following?type=artist&ids=${idsParam}`;
+            } else if (type === 'playlists') {
+                // Following a playlist is done one by one
+                for (const playlistId of batch) {
+                    const pUrl = `${this.apiBase}/playlists/${playlistId}/followers`;
+                    await this.fetchProxy(pUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ public: false })
+                    });
+                }
+                continue;
+            }
+
+            if (url) {
+                result = await this.fetchProxy(url, {
+                    method: method,
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+            }
         }
 
-        return this.fetchProxy(url, {
-            method: method,
-            headers: { 'Authorization': `Bearer ${accessToken}` },
-            body: body
-        });
+        return result;
     }
 
     /**
@@ -203,6 +375,10 @@ class SpotifyAPI {
      * @returns {Object} Created playlist object with id, uri, etc.
      */
     async createPlaylist(accessToken, userId, name, description = '', isPublic = false) {
+        if (!userId) {
+            console.error('[SpotifyAPI] Cannot create playlist: userId is missing');
+            throw new Error('Spotify User ID is required to create a playlist');
+        }
         const url = `${this.apiBase}/users/${userId}/playlists`;
         return this.fetchProxy(url, {
             method: 'POST',
@@ -248,4 +424,9 @@ class SpotifyAPI {
 
         return result;
     }
+}
+
+// Export for Node.js testing environment
+if (typeof module !== 'undefined') {
+    module.exports = SpotifyAPI;
 }
